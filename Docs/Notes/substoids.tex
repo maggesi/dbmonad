@@ -1,0 +1,117 @@
+\documentclass[a4paper,twoside,12pt]{article}
+
+\usepackage{amsthm,amsmath,amssymb}
+
+\newtheorem{theorem}{Theorem}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\NN}{\mathbb{N}}
+\newcommand{\subst}{\mathtt{subst}}
+\newcommand{\refe}{\mathtt{ref}}
+\newcommand{\TT}{\mathtt{T}}
+\newcommand{\MM}{\mathtt{M}}
+\newcommand{\msubst}{\mathtt{msubst}}
+
+\title{Substoids}
+\author{Andr\'e Hirschowitz \and Marco Maggesi}
+\date{April 2017}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  We present a simple algebraic structure that helps to reason about
+  higher-order syntax and semantics using de Bruijn's nameless
+  encoding.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+To be done.
+Advantages:
+\begin{itemize}
+\item Help to reason about de Bruijn encoding: write \emph{fusion
+    laws} without pain.
+\item Simple: just three easy axioms, category-theoretic in nature,
+  but Category Theory not strictly required.
+\item Basic: can be formalized idiomatically in HOL, no dependent
+  types required.
+\end{itemize}
+
+\section{Definition of substoid}
+\label{sec:definition-substoid}
+
+\begin{definition}[Substoid]
+  A \emph{substoid} is given by a type $\TT$ and two functions
+  \begin{align*}
+    \mathtt{ref} &\colon \NN \to \TT, \\
+    \mathtt{subst} &\colon (\NN \to \TT) \to \TT \to \TT
+  \end{align*}
+  called \emph{reference} and \emph{substitution}, satisfying the
+  following three conditions
+  \begin{align*}
+    \subst\ f\ (\refe\ i) &=  f\ i \\
+    \subst\ \refe\ x &=  x \\
+    \subst\ f\ (\subst\ g\ x) &= \subst\ (\subst\ f \cdot g)\ x
+  \end{align*}
+  for all $x : \TT$, $i :\NN$ and $f,g\colon \NN \to \TT$.
+\end{definition}
+
+\textbf{ToDo: examples:}
+\begin{itemize}
+\item The trivial substoid $\NN$.
+\item The `free monoid' substoid $\mathtt{list}(\NN)$.
+\item Lambda calculus modulo $\alpha$ (both syntactic $\Lambda$ and
+  semantic $\Lambda_{\beta\eta}$).
+\item HOCore.
+\end{itemize}
+
+\textbf{ToDo:} Substoids are just a special case of relative monads (isn't it?)
+
+\textbf{Open Problem(?), definition of \emph{Free Reference}:}
+Define 'free references' in the theory of substoids:
+\begin{enumerate}
+\item As an example, consider $\Lambda$, the substoid of
+  $\lambda$-calculus (syntactic or semantic as you prefer).
+\item It is easy to define inductive relation
+  $i\ \mathtt{free\_in}\ x$.
+\item The key property is
+  \begin{equation*}
+    \subst\ f\ x = x \Longleftrightarrow
+    (\forall i.\, i\ \mathtt{free\_in}\ x \Longrightarrow f\ i = i)
+  \end{equation*}
+\item \textbf{Question:} Can we turn the above theorem into a
+  \emph{substoidal} definition of \emph{free reference}?
+\end{enumerate}
+
+\section{Modules over substoids}
+\label{sec:modules}
+
+\begin{definition}[Modules of a substoid]
+  A \emph{module} of a substoid $\TT$ is a type $\MM$ with an
+  \emph{action}
+  \begin{equation*}
+    \msubst\colon (\NN\to \TT) \to \MM \to \MM
+  \end{equation*}
+  satisfying the laws
+  \begin{align*}
+    \msubst\ \refe\ x &= x\\
+    \msubst\ f\ (\msubst\ g\ x) &= \msubst\ (\subst f \cdot g)\ x
+  \end{align*}
+  for all $x\in \MM$ and $f,g\colon \NN \to \TT$.
+\end{definition}
+
+Examples:
+\begin{itemize}
+\item Every substoid is a module over itself.
+\item Arbitrary products of substoids.
+\end{itemize}
+
+\textbf{ToDo: Derived substoid.}
+
+\end{document}
+
+%  LocalWords:  substoid substoids

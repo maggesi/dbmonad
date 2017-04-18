@@ -9,5 +9,8 @@ An algebraic structure for reasoning about
 
 ### Structure of this repository ###
 
-* `Code`
-* `Docs`
+There are three main subdirectories:
+
+* Archives/ - Old tarballs that I found laying around on my computers
+* Code/ - Various computer formalizations and implementations
+* Docs/ - Notes and papers

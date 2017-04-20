@@ -14,6 +14,7 @@
 \newcommand{\NN}{\mathbb{N}}
 \newcommand{\subst}{\mathtt{subst}}
 \newcommand{\refe}{\mathtt{ref}}
+\newcommand{\reindex}{\mathtt{reindex}}
 \newcommand{\TT}{\mathtt{T}}
 \newcommand{\MM}{\mathtt{M}}
 \newcommand{\msubst}{\mathtt{msubst}}
@@ -65,7 +66,7 @@ Advantages:
     && \text{right unital law} \\
     \subst(\refe, x) &=  x
     && \text{left unital law} \\
-    \subst(f, \subst(g, x)) &= \subst((\subst(f) \circ g), x)
+    \subst(f, \subst(g, x)) &= \subst(\subst(f) \circ g, x)
     &&\text{associativity law}
   \end{align*}
   for all $x : \TT$, $i :\NN$ and $f,g\colon \NN \to \TT$.
@@ -122,6 +123,27 @@ For now, we simply introduce the dB-monad $\mathsf{\Lambda}$ of
 (syntactic) $\lambda$-calculus as the one associated to the
 corresponding monad $\Lambda$, as stated before.  Later we will
 discuss a more explicit construction of $\mathtt{\Lambda}$.
+
+\subsection{Functoriality of dB-monads}
+\label{sec:further-operators-db}
+
+Given a dB-monad $\TT$ we can define the \emph{reindex} operator
+\begin{equation*}
+  \reindex\colon (\NN \to \NN) \to (\TT \to \TT)
+\end{equation*}
+given by
+\begin{equation*}
+  \reindex(f,x) = \subst(\refe \circ f, x).
+\end{equation*}
+It is straightforward to verify, from the axioms of dB-monad, that the
+following \emph{fusion} laws holds for $\reindex$:
+\begin{align*}
+  \reindex(f,\refe(i)) &= \refe(f(i)) \\
+  \reindex(\refe,x) &= x \\
+  \reindex(f,\subst(g,x)) &= \subst(\reindex(f) \circ g, x) \\
+  \subst(f,\reindex(g,x)) &= \subst(f \circ g,x) \\
+  \reindex(f,\reindex(g,x)) &= \reindex(f\circ g, x) \\
+\end{align*}
 
 \subsection{dB-monads and relative monads}
 \label{sec:subst-rel-monads}
@@ -270,15 +292,15 @@ Let $\MM$ be a module over the dB-monad $\TT$.
   where $f'$ is defined by the equations:
   \begin{align*}
     f'(0) &= \refe(0)\\
-    f'(i+1) &= \subst(\mathsf{suc},f(i))
+    f'(i+1) &= \reindex(\mathtt{suc},f(i))
   \end{align*}
-  and $\mathsf{suc}$ denotes the \emph{successor function}
-  ($\mathsf{suc}(i) = i+1$).
+  and $\mathsf{suc} \colon \NN \to \NN$ denotes the \emph{successor
+    function} ($\mathtt{suc}(i) = i+1$).
   \end{itemize}
 \end{definition}
 
 The necessary verification to establish that $\MM'$ is indeed a module
-are straightforward.
+are easy.
 
 \end{document}
 

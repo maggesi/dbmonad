@@ -1,6 +1,7 @@
 \documentclass[a4paper,twoside,12pt]{article}
 
 \usepackage{amsthm,amsmath,amssymb}
+\usepackage{xypic}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{proposition}{Proposition}
@@ -8,6 +9,8 @@
 \newtheorem{definition}{Definition}
 \theoremstyle{remark}
 \newtheorem{remark}{Remark}
+\theoremstyle{example}
+\newtheorem{example}{Example}
 
 \DeclareMathOperator{\Ob}{Ob}
 
@@ -34,6 +37,24 @@
   to easily extrapolate several useful \emph{fusion laws} which
   otherwise might be tricky to devise.  Finally we develop a theory of
   initial semantics for algebraic syntax in this framework.
+
+%   We propose an explanation for the success of the deBruijn encoding
+%   of the syntax associated to a (higher-order) signature $\Sigma$.
+
+%   Indeed, we show how it can be viewed as the initial representation
+%   of $\Sigma$ in a suitable class of relative monads (in the sense of
+%   Altenkirch, Chapman, and Uustalu).
+
+
+% in dB-monads, i.e., "monads relative to" (in the sense
+%   of Altenkirch, Chapman, and Uustalu)
+%   the functor dB which injects into the category Set its full
+%   subcategory with one object \N.
+
+%   This high-level point of view allows us to easily extrapolate
+%   several useful "fusion laws" which otherwise might be tricky to
+%   devise.
+
 \end{abstract}
 
 \tableofcontents{}
@@ -88,58 +109,61 @@ dB-monad.
 
 We now consider some basic examples of dB-monads.
 
-\paragraph{The identity dB-monad}
+\begin{example}[The initial dB-monad]
+  The type $\NN$ of natural numbers has a trivial structure of
+  dB-monad with $\refe(i) \stackrel{\mathsf{def}}{=} i$ and
+  $\subst(f,i) \stackrel{\mathsf{def}}{=} f(i)$.
+\end{example}
 
-The type $\NN$ of natural numbers has a trivial structure of dB-monad
-with $\refe(i) \stackrel{\mathsf{def}}{=} i$ and
-$\subst(f,i) \stackrel{\mathsf{def}}{=} f(i)$.
+\begin{example}[The dB-monad of lists]
+  A less trivial example is the \emph{dB-monad of lists} (which might
+  well also called \emph{free monoid dB-monad}) defined as follows:
+  \begin{align*}
+    T &\stackrel{\mathsf{def}}{=}\mathtt{list}(\NN) \\
+    \refe(i) &\stackrel{\mathsf{def}}{=} [i] \\
+    \subst(f,[x_1, \dots, x_n] &\stackrel{\mathsf{def}}{=} f(x_1) + \cdots + f(x_n)
+  \end{align*}
+  where $[i]$ denotes the singleton lists and `$+$' in the last
+  identity denotes the concatenation of lists.
+\end{example}
 
-\paragraph{The dB-monad of lists}
+\begin{example}[The dB-monad associated to a monad]
+  \label{ex:list-db-monad}
+  Given a monad $M$ on $\mathsf{Set}$ (the category of small sets),
+  $\TT \stackrel{\mathsf{def}}{=} M(\NN)$ has a natural structure of
+  dB-monad where $\refe = \eta_\NN$ and
+  $\subst(f) \stackrel{\mathsf{def}}{=} \mathsf{bind}(f)$.
+\end{example}
 
-A less trivial example is the \emph{free monoid dB-monad} (which might
-well also called \emph{free monoid dB-monad}) defined as follows:
-\begin{align*}
-T &\stackrel{\mathsf{def}}{=}\mathtt{list}(\NN) && \text{the type of lists of natural numbers} \\
-\refe(i) &\stackrel{\mathsf{def}}{=} [i] &&\text{the singleton list} \\
-\subst(f,[x_1, \dots, x_n] &\stackrel{\mathsf{def}}{=} f(x_1) + \cdots + f(x_n)
-\end{align*}
-where `$+$' in the last identity denotes the concatenation of lists.
+Indeed, our previous Example \ref{ex:list-db-monad} about the dB-monad
+of lists is precisely the dB-monad associated to the monad of lists.
 
-\paragraph{The dB-monad associated to a monad}
+\begin{example}[TODO: The dB-monad associated to a relative monad(?)]
+  Generalization of the previous example.
 
-Given a monad $M$ on $\mathsf{Set}$ (the category of small sets),
-$\TT \stackrel{\mathsf{def}}{=} M(\NN)$ has a natural structure of
-dB-monad where $\refe = \eta_\NN$ and
-$\subst(f) \stackrel{\mathsf{def}}{=} \mathsf{bind}(f)$.
+  dB-monads are relative monad on
+  $J\colon \langle \NN \rangle \to \mathsf{Set}$.
 
-Indeed, our previous example about the dB-monad of lists is precisely
-the dB-monad associated to the monad of lists.
+  Can we consider other kind of functors for $J$?
 
-\paragraph{TODO: The dB-monad associated to a relative monad(?)}
+  Of course (see previous paragraph ``The dB-monad associated to a
+  monad'') we can take take the identity
+  $J:\mathsf{Set} \to \mathsf{Set}$.
 
-dB-monads are relative monad on $J\colon \langle \NN
-\rangle \to \mathsf{Set}$.
+  More generally, I suspect that anything with target into
+  $\mathsf{Set}$ should work.  Is that the case?
+\end{example}
 
-Can we consider more general $J$?
+\begin{example}[TODO: (relative?) monad associated to a dB-monad]
+  [Left Kan extension sould provide us with everything we need.]
+\end{example}
 
-Of course (see previous paragraph ``The dB-monad associated to a
-monad'') we can take take the identity $J:\mathsf{Set} \to
-\mathsf{Set}$.
-
-More generally, I suspect that anything with target into
-$\mathsf{Set}$ should work.  Is that the case?
-
-
-\paragraph{TODO: (relative?) monad associated to a dB-monad}
-
-[Left Kan extension sould provide us with everything we need.]
-
-\paragraph{dB-monad of $\lambda$-calculus}
-
-For now, we simply introduce the dB-monad $\mathsf{\Lambda}$ of
-(syntactic) $\lambda$-calculus as the one associated to the
-corresponding monad $\Lambda$, as stated before.  Later we will
-discuss a more explicit construction of $\mathtt{\Lambda}$.
+\begin{example}[dB-monad of $\lambda$-calculus]
+  For now, we simply introduce the dB-monad $\mathsf{\Lambda}$ of
+  (syntactic) $\lambda$-calculus as the one associated to the
+  corresponding monad $\Lambda$, as stated before.  Later we will
+  discuss a more explicit construction of $\mathtt{\Lambda}$.
+\end{example}
 
 \subsection{dB-monads and relative monads}
 \label{sec:subst-rel-monads}
@@ -309,20 +333,21 @@ parallel notion of \emph{dB-module over dB-monads}.
 \subsection{Examples of modules}
 \label{sec:examples-modules}
 
-\paragraph{The trivial module}
+\begin{example}[The tautological dB-module]
+  Every dB-monad is a module over itself in an obvious way.
+\end{example}
 
-Every dB-monad is a module over itself in an obvious way.
+\begin{example}[Modules associated to modules of a monad]
+  Let $R$ be a monad over $\mathsf{Set}$.  Given a module $M$ over
+  $R$, $M(\NN)$ has a natural structure of module over the dB-monad
+  $R(\NN)$.
+\end{example}
 
-\paragraph{Modules associated to modules of a monad}
-
-Let $R$ be a monad over $\mathsf{Set}$.  Given a module $M$ over $R$,
-$M(\NN)$ has a natural structure of module over the dB-monad $R(\NN)$.
-
-\paragraph{Arbitrary products of modules}
-
-Let $\TT$ be a dB-monad.  Arbitrary products of modules over $\TT$
-are, in an obvious way, modules over $\TT$ (see also Proposition
-\ref{prop:modules-product}).
+\begin{example}[Products of modules]
+  Let $\TT$ be a dB-monad.  Arbitrary products of modules over $\TT$
+  are, in an obvious way, modules over $\TT$ (see also Proposition
+  \ref{prop:modules-product}).
+\end{example}
 
 \subsection{Morphisms of dB-modules}
 \label{sec:morphisms-db-modules}
@@ -379,6 +404,31 @@ are easy.  A refined statement is given by the following proposition.
   Derivation yields a Cartesian endofunctor of $\mathsf{Mod}(\TT)$.
 \end{proposition}
 
+\subsection{Pull-backs}
+\label{sec:pull-backs}
+
+\begin{definition}[Pull-back of a dB-module]
+  Given a morphism of dB-module $\phi\colon \TT_1 \to \TT_2$ and a
+  $\TT_2$ module $\MM$ with action $\msubst_2$ we can define a
+  structure of $\TT_1$-module on $\MM$ given by the action
+  \begin{equation*}
+    \msubst_1(f,x) \stackrel{\mathsf{def}}{=} \msubst_2(\phi \circ f, x).
+  \end{equation*}
+  We will write $\phi^*(\MM)$ to denote the pull-back of $\MM$ along
+  $\phi$.
+\end{definition}
+
+Given $\phi\colon \TT_1 \to \TT_2$ as in the definition every $\TT_2$
+linear morphism $\psi\colon \MM_1 \to \MM_2$ is also a $\TT_2$-linear
+morphism.  More precisely the following proposition holds.
+
+\begin{proposition}
+  \label{prop:pull-back-functor}
+  The pull-back
+  $\phi^* \colon \mathsf{Mod}(\TT_2) \to \mathsf{Mod}(\TT_1)$ is
+  cartesian functor.
+\end{proposition}
+
 \section{Initial semantics with dB-monads}
 \label{sec:init-semantics}
 
@@ -401,7 +451,29 @@ are easy.  A refined statement is given by the following proposition.
   \end{itemize}
 \end{definition}
 
+In the sequel, we will abbreviate
+$\MM^{(a_1)}\times\cdots\times\MM^{(a_n)}$ with $M^{a_1,\dots,a_n}$ or
+by $\MM^a$.
+
+In particular, we can consider representation of a signature in a
+dB-monad, by taking the associated tautological module.  We form a
+category of representation in a dB-monad.
+
+\begin{definition}[The category of representation in a dB-monad]
+  Let $\phi \colon \TT_1 \to \TT_2$ be a morphism between two
+  dB-monads, each of which endowed by a representation of a signature
+  $\Sigma$.  We say that $\phi$ is a \emph{morphism of
+    $\Sigma$-representations} if, for each arity $a$ of $\Sigma$, the
+  induced diagram diagram
+  \begin{equation*}
+    \xymatrix{
+      \TT_1^a\ar[d]\ar[r] & \TT_1\ar[d]^\phi \\
+      \TT_2^a \ar[r] & \TT_2}
+  \end{equation*}
+  where the orizontal arrows are the representations of $a$.
+\end{definition}
+
 \end{document}
 
 %  LocalWords: unital associativity monad monoid functor monads arity
-%  LocalWords:  arities morphism morphisms
+%  LocalWords: arities morphism morphisms

@@ -2,6 +2,7 @@
 
 \usepackage{amsthm,amsmath,amssymb}
 \usepackage{xypic}
+\usepackage{natbib}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{proposition}{Proposition}
@@ -30,37 +31,35 @@
 \maketitle
 
 \begin{abstract}
-  We focus on a special class of (relative) monads which arise
-  naturally in the implementation of higher-order syntax with the de
-  Bruijn encoding.  We develop the algebraic theory of such \emph{de
-    Bruijn monads} (\emph{dB-monads}) and we show how they can be used
-  to easily extrapolate several useful \emph{fusion laws} which
-  otherwise might be tricky to devise.  Finally we develop a theory of
-  initial semantics for algebraic syntax in this framework.
+  % We focus on a special class of (relative) monads which arise
+  % naturally in the implementation of higher-order syntax with the de
+  % Bruijn encoding.  We develop the algebraic theory of such \emph{de
+  %   Bruijn monads} (\emph{dB-monads}) and we show how they can be used
+  % to easily extrapolate several useful \emph{fusion laws} which
+  % otherwise might be tricky to devise.  Finally we develop a theory of
+  % initial semantics for algebraic syntax in this framework.
 
-%   We propose an explanation for the success of the deBruijn encoding
-%   of the syntax associated to a (higher-order) signature $\Sigma$.
-
-%   Indeed, we show how it can be viewed as the initial representation
-%   of $\Sigma$ in a suitable class of relative monads (in the sense of
-%   Altenkirch, Chapman, and Uustalu).
-
-
-% in dB-monads, i.e., "monads relative to" (in the sense
-%   of Altenkirch, Chapman, and Uustalu)
-%   the functor dB which injects into the category Set its full
-%   subcategory with one object \N.
-
-%   This high-level point of view allows us to easily extrapolate
-%   several useful "fusion laws" which otherwise might be tricky to
-%   devise.
-
+  We propose an explanation for the success of the deBruijn encoding
+  of the syntax associated to a (higher-order) signature $\Sigma$.
+  Indeed, we show how it can be viewed as the initial representation
+  of $\Sigma$ in relative monads (in the sense of Altenkirch, Chapman,
+  and Uustalu) on a very simple functor.  This functor is the
+  embedding into the category $\mathsf{Set}$ of its full subcategory
+  with one object $\NN$.  This high-level point of view allows us to
+  easily extrapolate several useful "fusion laws" which otherwise
+  might be tricky to devise.
 \end{abstract}
 
 \tableofcontents{}
 
 \section{Introduction}
 \label{sec:intro}
+
+De Bruijn encoding is a popular programming technique for implementing
+higher-order calculi.  In these notes, we seek for a concise and clear
+theoretic formulation of this method with the help of the categorical
+point of view.
+
 To be done.
 Advantages:
 \begin{itemize}
@@ -71,6 +70,65 @@ Advantages:
 \item Basic: can be formalized idiomatically in HOL, no dependent
   types required.
 \end{itemize}
+
+\subsection{Classical de Bruijn paradigm}
+\label{sec:classical-de-bruijn}
+
+As a reference for the rest of the paper, we report here an
+implementation in OCaml of $\lambda$-calculus using the de Bruijn
+encoding.  With inessential modifications, the same code can be found
+from several sources.  For instance, apart from certain superficial
+syntactic changes, this is the implementation shown in Huet's notes on
+\emph{Constructive Computation Theory} \cite[Section 1.4.2,
+p.~15]{Huet-1992}.  In Section \ref{sec:lambda-calculus} we will
+discuss the alternative implementation that come as a natural
+consequence of the `monadic' approach.
+
+We start by defining a new algebraic datatype \texttt{term} for
+$\lambda$-terms:
+\begin{verbatim}
+type term = Ref of int | Abs of term | App of term * term;;
+\end{verbatim}
+Next, we define a \emph{lift} function, which will be responsible for
+`bumping' free references during substitution.  The recursive
+definition needs an auxiliary function, \texttt{lifti}, that takes an
+additional parameter $k$ for counting the number of abstraction that
+has been traversed.
+\begin{verbatim}
+let rec lifti n t k =
+  match t with
+    Ref i     -> if i < k then Ref i
+                 else Ref (n + i)
+  | App (t,u) -> App (lifti n t k, lifti n u k)
+  | Abs t     -> Abs (lifti n t (k + 1));;
+
+let lift n t = lifti n t 0;;
+\end{verbatim}
+Then, we define the substitution function $\mathtt{subst1}\ u t$ which
+replace the term $u$ for the $0$-th reference in the term $t$.  Here
+the suffix \texttt{1} in the name of the function is meant to remember
+us that only this is the \emph{one-reference} substitution (in
+contrast with the \emph{parallel substitution} that we will use
+later).
+\begin{verbatim}
+let rec substi n w = function
+    Ref k     -> if k=n then lift n w
+                 else if k<n then Ref k
+                 else Ref (pred k)
+  | App (t,u) -> App (substi n w t, substi n w u)
+  | Abs t     -> Abs (substi (n+1) w t);;
+
+let subst1 = substi 0;;
+\end{verbatim}
+Again, the actual work is done by an auxiliary function
+\texttt{substi} which has an additional parameter $k$ for
+the \emph{abstraction depth}.
+
+One key point of these notes is to describe how the functional
+paradigm allows us to keep track of the abstraction depth in a more
+elegant and clear way and to show that this lead to an alternative
+programming practice which is seamlessly integrated with the
+categorical treatment of higher-order syntax.
 
 \section{Basic definitions and examples}
 \label{sec:basic-def}
@@ -192,22 +250,22 @@ of lists is precisely the dB-monad associated to the monad of lists.
 We are going to show how a dB-monad $\TT$ has a natural structure of
 relative monad.  Take
 $\mathsf{J} \stackrel{\mathsf{def}}{=}\langle \NN \rangle$ (the full
-subcategory of $\mathsf{Set}$ generated by $\NN$) and
+subcategory of $\mathsf{Set}$ generated by $\NN$).  We call \emph{de
+  Bruijn functor} (or \emph{dB-functor}) the inclusion
 \begin{equation}
-  \label{eq:functor_J}
-  J\colon \langle \NN \rangle \to \mathsf{Set}
+  \label{eq:dB-functor}
+  \mathsf{dB}\colon \langle \NN \rangle \to \mathsf{Set}.
 \end{equation}
-the inclusion functor.
 
-\begin{proposition}[Relative monad over $J$ associated to a dB-monad]
-  Given a dB-monad $\TT$, define
-  \begin{align*}
-    M(\NN) &\stackrel{\mathsf{def}}{=} \TT, \\
-    \eta_\NN &\stackrel{\mathsf{def}}{=} \refe, \\
-    \sigma &\stackrel{\mathsf{def}}{=} \subst.
-  \end{align*}
-  Then $M,\eta,\sigma$ is a relative monad over $J$.
-\end{proposition}
+Then, it can be observed that dB-monads correspond precisely to monads
+relative to the de Bruijn functor.  More precisely, given a dB-monad
+$\TT$, define
+\begin{align*}
+  M(\NN) &\stackrel{\mathsf{def}}{=} \TT, \\
+  \eta_\NN &\stackrel{\mathsf{def}}{=} \refe, \\
+  \sigma &\stackrel{\mathsf{def}}{=} \subst.
+\end{align*}
+Then $M,\eta,\sigma$ is a relative monad over $J$.
 
 % \subsection{dB-monads and relative monads -- alternative version(?)}
 % \label{sec:subst-rel-monads-alt}
@@ -279,7 +337,7 @@ following \emph{fusion} laws holds for $\reindex$:
 It is immediate to verify that the previous definition builds
 dB-monads into a category $\mathsf{dB}$ which is precisely, the
 category of relative monads over the functor $J$ of
-\eqref{eq:functor_J}.
+\eqref{eq:dB-functor}.
 
 It follows at once that morphisms of dB-monads commute with
 reindexing, that is, for all $\phi\colon \TT_1 \to \TT_2$,
@@ -429,6 +487,41 @@ morphism.  More precisely the following proposition holds.
   cartesian functor.
 \end{proposition}
 
+\section{$\lambda$-calculus}
+\label{sec:lambda-calculus}
+
+We now expose the construction of the dB-monad of $\lambda$-calculus
+in OCaml.  Lambda terms are represented with the same datatype an in
+Section \ref{sec:classical-de-bruijn}:
+\begin{verbatim}
+type term = Ref of int | Abs of term | App of term * term;;
+\end{verbatim}
+
+Since OCaml do not allows to pass constructors as function arguments,
+we provide the following additional definition:
+\begin{verbatim}
+let idenv i     = Ref i;;
+\end{verbatim}
+The name \texttt{idenv} is mnemonic for \emph{identity environment}
+which comes from the fact that a function $\NN \to \mathtt{term}$ can
+be seen as an environment for terms.
+
+Then, we can give the main definition:
+\begin{verbatim}
+let rec subst f = function Ref i    -> f i
+                         | App(t,u) -> App(subst f t,subst f u)
+                         | Abs t    -> Abs(diff subst f t)
+and reindex f x = subst (idenv o f) x
+and diff s f t  = s (push (Ref 0) f) t
+and push u f    = function 0 -> u
+                         | i -> reindex succ (f (i-1));;
+\end{verbatim}
+
+Finally, the single substitution can be easily derived from parallel substitution.
+\begin{verbatim}
+let subst1 u t  = subst (push u idenv) t;;
+\end{verbatim}
+
 \section{Initial semantics with dB-monads}
 \label{sec:init-semantics}
 
@@ -473,7 +566,10 @@ category of representation in a dB-monad.
   where the orizontal arrows are the representations of $a$.
 \end{definition}
 
+\bibliographystyle{plainnat}
+%\bibliographystyle{alpha}
+\bibliography{dbmonad}
 \end{document}
 
 %  LocalWords: unital associativity monad monoid functor monads arity
-%  LocalWords: arities morphism morphisms
+%  LocalWords: arities morphism morphisms monadic

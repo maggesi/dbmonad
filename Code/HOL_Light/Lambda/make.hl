@@ -1,5 +1,3 @@
-(* -*- holl -*- *)
-
 (* ========================================================================= *)
 (*  Lambda Calculus, Operad and the proof of an universal property.          *)
 (*                                                                           *)
@@ -7,12 +5,15 @@
 (*          University of Florence, Italy                                    *)
 (*          http://www.math.unifi.it/~maggesi/                               *)
 (*                                                                           *)
-(*          (c) Copyright, Marco Maggesi 2006                                *)
+(*          (c) Copyright, Marco Maggesi 2005 2006 2017                      *)
 (* ========================================================================= *)
 
-needs "Examples/rstc.ml";;		(* Refl, symm, trans closure. *)
-needs "De_Bruijn/lib.ml";;		(* Misc tactics and theorems. *)
-needs "De_Bruijn/dbterm.ml";;		(* Lambda (de Bruijn) calculus.  *)
-needs "De_Bruijn/lc.ml";;		(* Lambda calculus modulo beta-eta. *)
-needs "De_Bruijn/operad.ml";;		(* Operads and modules. *)
-needs "De_Bruijn/lc_univ.ml";;		(* Universal property of lc. *)
+type_invention_warning := false;;
+needs "Library/rstc.ml";;               (* Refl, symm, trans closure.       *)
+type_invention_warning := true;;
+
+loadt "Lambda/lib.hl";;                 (* Misc tactics and theorems.       *)
+loadt "Lambda/dbterm.hl";;              (* Lambda (de Bruijn) calculus.     *)
+loadt "Lambda/lambda.hl";;              (* Lambda calculus modulo beta-eta. *)
+loadt "Lambda/dbmonad.hl";;             (* Operads and modules.             *)
+loadt "Lambda/univ.hl";;                (* Universal property of lc.        *)

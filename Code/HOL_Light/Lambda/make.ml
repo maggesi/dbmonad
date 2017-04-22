@@ -1,0 +1,18 @@
+(* -*- holl -*- *)
+
+(* ========================================================================= *)
+(*  Lambda Calculus, Operad and the proof of an universal property.          *)
+(*                                                                           *)
+(*  Author: Marco Maggesi                                                    *)
+(*          University of Florence, Italy                                    *)
+(*          http://www.math.unifi.it/~maggesi/                               *)
+(*                                                                           *)
+(*          (c) Copyright, Marco Maggesi 2006                                *)
+(* ========================================================================= *)
+
+needs "Examples/rstc.ml";;		(* Refl, symm, trans closure. *)
+needs "De_Bruijn/lib.ml";;		(* Misc tactics and theorems. *)
+needs "De_Bruijn/dbterm.ml";;		(* Lambda (de Bruijn) calculus.  *)
+needs "De_Bruijn/lc.ml";;		(* Lambda calculus modulo beta-eta. *)
+needs "De_Bruijn/operad.ml";;		(* Operads and modules. *)
+needs "De_Bruijn/lc_univ.ml";;		(* Universal property of lc. *)

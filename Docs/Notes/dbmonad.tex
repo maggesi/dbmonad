@@ -1,5 +1,7 @@
 \documentclass[a4paper,twoside,12pt]{article}
 
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
 \usepackage{amsthm,amsmath,amssymb}
 \usepackage{xypic}
 \usepackage{natbib}
@@ -16,11 +18,12 @@
 \DeclareMathOperator{\Ob}{Ob}
 
 \newcommand{\NN}{\mathbb{N}}
-\newcommand{\subst}{\mathtt{subst}}
-\newcommand{\refe}{\mathtt{ref}}
-\newcommand{\reindex}{\mathtt{reindex}}
 \newcommand{\TT}{\mathtt{T}}
 \newcommand{\MM}{\mathtt{M}}
+\newcommand{\subst}{\mathtt{subst}}
+\newcommand{\refe}{\mathtt{ref}}
+\newcommand{\frees}{\mathtt{frees}}
+\newcommand{\reindex}{\mathtt{reindex}}
 \newcommand{\msubst}{\mathtt{msubst}}
 
 \title{De Bruijn Monads}
@@ -71,7 +74,7 @@ Advantages:
   types required.
 \end{itemize}
 
-\subsection{Classical de Bruijn paradigm}
+\subsection{The classical implementation of de Bruijn encoding}
 \label{sec:classical-de-bruijn}
 
 As a reference for the rest of the paper, we report here an
@@ -81,7 +84,7 @@ from several sources.  For instance, apart from certain superficial
 syntactic changes, this is the implementation shown in Huet's notes on
 \emph{Constructive Computation Theory} \cite[Section 1.4.2,
 p.~15]{Huet-1992}.  In Section \ref{sec:lambda-calculus} we will
-discuss the alternative implementation that come as a natural
+discuss an alternative implementation that come as a natural
 consequence of the `monadic' approach.
 
 We start by defining a new algebraic datatype \texttt{term} for
@@ -349,21 +352,41 @@ $x\in \TT_1$ and $f\colon \NN\to \NN$ we have
 \subsection{Free references}
 \label{sec:free-references}
 
-\textbf{TODO: Definition of \emph{Free Reference}:}
-Define 'free references' in the theory of dB-monads:
-\begin{enumerate}
-\item As an example, consider $\Lambda$, the dB-monad of
-  $\lambda$-calculus (syntactic or semantic as you prefer).
-\item It is easy to define inductive relation
-  $i\ \mathtt{free\_in}\ x$.
-\item The key property is
+The substitution operator determines the set $\frees(x)$ of \emph{free
+  references} in a term $x$ of a dB-monad $\TT$.  The key property is
+\begin{equation*}
+  \subst(f,x) = x \Longleftrightarrow
+  (\forall i.\, i \in \mathtt{frees}(x) \Longrightarrow f(i) = i).
+\end{equation*}
+
+A suitable definition of free references i the following.
+\begin{definition}[Free references]
+  The set of \emph{free references} $\frees(x)$ of a term $x$ in a
+  dB-monad $\TT$ is the set of natural numbers
   \begin{equation*}
-    \subst(f,x) = x \Longleftrightarrow
-    (\forall i.\, i\ \mathtt{free\_in}\ x \Longrightarrow f\ i = i)
+    \frees(x) \stackrel{def}{=}
+    \Big\{
+    i\ \Big|\  \forall f.\, (\forall j.\, j\neq i \Longrightarrow f(j) = \refe(j)) \wedge
+    \subst(f,x) = x
+    \Big\}
   \end{equation*}
-\item \textbf{Question:} Can we turn the above theorem into a
-  \emph{dB-monadic} definition of \emph{free reference}?
-\end{enumerate}
+\end{definition}
+
+For reindexing we have property analogous to that of substitution:
+\begin{equation*}
+  \reindex(f,x) = x \Longleftrightarrow
+  (\forall i.\, i \in \mathtt{frees}(x) \Longrightarrow f(i) = \refe(i)).
+\end{equation*}
+More generally, we have the following result of extensionality.
+\begin{proposition}
+  Let $x$ be a term of a dB-monad $\TT$.  Then
+  \begin{enumerate}
+  \item if two functions $f,g\colon \NN\to \TT$ agrees on $\frees(x)$
+    then $\subst(f,x) = \subst(g,x)$;
+  \item if two functions $f,g\colon \NN\to \NN$ agrees on $\frees(x)$
+    then $\reindex(f,x) = \reindex(g,x)$.
+  \end{enumerate}
+\end{proposition}
 
 \section{Modules over dB-monads}
 \label{sec:modules}
@@ -490,6 +513,15 @@ morphism.  More precisely the following proposition holds.
 \section{$\lambda$-calculus}
 \label{sec:lambda-calculus}
 
+\subsection{The dB-monad of $\lambda$-calculus}
+\label{sec:db-monad-lambda}
+
+TODO.
+[Say that abs and app are linear.]
+
+\subsection{La supériorité de l'ordre supérieur}
+\label{sec:super}
+
 We now expose the construction of the dB-monad of $\lambda$-calculus
 in OCaml.  Lambda terms are represented with the same datatype an in
 Section \ref{sec:classical-de-bruijn}:
@@ -513,8 +545,9 @@ let rec subst f = function Ref i    -> f i
                          | Abs t    -> Abs(diff subst f t)
 and reindex f x = subst (idenv o f) x
 and diff s f t  = s (push (Ref 0) f) t
+and bump t      = reindex succ t
 and push u f    = function 0 -> u
-                         | i -> reindex succ (f (i-1));;
+                         | i -> bump (f(i-1));;
 \end{verbatim}
 
 Finally, the single substitution can be easily derived from parallel substitution.
@@ -572,4 +605,5 @@ category of representation in a dB-monad.
 \end{document}
 
 %  LocalWords: unital associativity monad monoid functor monads arity
-%  LocalWords: arities morphism morphisms monadic
+%  LocalWords: arities morphism morphisms monadic reindexing
+%  LocalWords: extensionality

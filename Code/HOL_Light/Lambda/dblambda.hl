@@ -1,0 +1,304 @@
+(* ========================================================================= *)
+(*  Syntactic Lambda Calculus "a la" de Bruijn.                              *)
+(*  Here syntactic means: "terms are not identified by beta-eta relation".   *)
+(*                                                                           *)
+(*  Author: Marco Maggesi                                                    *)
+(*          University of Florence, Italy                                    *)
+(*          http://www.math.unifi.it/~maggesi/                               *)
+(*                                                                           *)
+(*          (c) Copyright, Marco Maggesi 2005 2006 2017                      *)
+(* ========================================================================= *)
+
+(* ------------------------------------------------------------------------- *)
+(* Type for lambda terms using de Bruijn notation.                           *)
+(* ------------------------------------------------------------------------- *)
+
+let dblambda_INDUCT, dblambda_RECURSION = define_type
+  "dblambda = REF num
+            | APP dblambda dblambda
+            | ABS dblambda";;
+
+(* ------------------------------------------------------------------------- *)
+(* Handy tactics for induction and case analysis.                            *)
+(* ------------------------------------------------------------------------- *)
+
+let DBLAMBDA_INDUCT_TAC =
+  MATCH_MP_TAC dblambda_INDUCT THEN CONJ_TAC THENL
+  [GEN_TAC; CONJ_TAC THEN GEN_TAC THENL
+   [GEN_TAC THEN DISCH_THEN (CONJUNCTS_THEN ASSUME_TAC); DISCH_TAC]];;
+
+let dblambda_CASES = MESON[dblambda_INDUCT]
+  `!P. (!a. P (REF a)) /\ (!a0 a1. P (APP a0 a1)) /\ (!a. P (ABS a))
+       ==> (!x. P x)`;;
+
+let DBLAMBDA_CASES_TAC =
+  MATCH_MP_TAC dblambda_INDUCT THEN CONJ_TAC THENL
+  [GEN_TAC; CONJ_TAC THEN GEN_TAC THENL
+   [GEN_TAC; ALL_TAC]];;
+
+(* ------------------------------------------------------------------------- *)
+(* Free references.                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+let FREES_RULES,FREES_INDUCT,FREES_CASES = new_inductive_set
+  `(!i. i IN FREES (REF i)) /\
+   (!x y i. i IN FREES x ==> i IN FREES (APP x y)) /\
+   (!x y i. i IN FREES y ==> i IN FREES (APP x y)) /\
+   (!x i. SUC i IN FREES x ==> i IN FREES (ABS x))`;;
+
+let FREES_INVERSION = prove
+ (`(!i j. j IN FREES (REF i) <=> j = i) /\
+   (!x y i. i IN FREES (APP x y) <=> i IN FREES x \/ i IN FREES y) /\
+   (!x i. i IN FREES (ABS x) <=> SUC i IN FREES x)`,
+  REPEAT STRIP_TAC THEN GEN_REWRITE_TAC LAND_CONV [FREES_CASES] THEN
+  REWRITE_TAC[distinctness "dblambda"; injectivity "dblambda"] THEN
+  MESON_TAC[]);;
+
+let FREES_CLAUSES = prove
+ (`(!i. FREES (REF i) = {i}) /\
+   (!x y. FREES (APP x y) = FREES x UNION FREES y) /\
+   (!x. FREES (ABS x) = {i | SUC i IN FREES x})`,
+  REPEAT STRIP_TAC THEN GEN_REWRITE_TAC I [EXTENSION] THEN GEN_TAC THEN
+  GEN_REWRITE_TAC LAND_CONV [FREES_INVERSION] THEN SET_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Slide.                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+let SLIDE = new_recursive_definition num_RECURSION
+  `(!f. SLIDE f 0 = 0) /\
+   (!f i. SLIDE f (SUC i) = SUC (f i))`;;
+
+let SLIDE_I = prove
+ (`SLIDE I = I`,
+  REWRITE_TAC[FUN_EQ_THM] THEN NUM_CASES_TAC THEN REWRITE_TAC[SLIDE; I_THM]);;
+
+let SLIDE_SLIDE = prove
+ (`!f g i. SLIDE f (SLIDE g i) = SLIDE (f o g) i`,
+  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN REWRITE_TAC[SLIDE; o_THM]);;
+
+let SLIDE_INJ = prove
+ (`!f i j. (!k l. f k = f l ==> k = l) ==> (SLIDE f i = SLIDE f j <=> i = j)`,
+  GEN_TAC THEN NUM_CASES_TAC THEN NUM_CASES_TAC THEN
+  REWRITE_TAC[SLIDE; NOT_SUC; SUC_INJ] THEN MESON_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Reindexing.                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+let REINDEX = new_recursive_definition dblambda_RECURSION
+  `(!f i. REINDEX f (REF i) = REF (f i)) /\
+   (!f x y. REINDEX f (APP x y) = APP (REINDEX f x) (REINDEX f y)) /\
+   (!f x. REINDEX f (ABS x) = ABS (REINDEX (SLIDE f) x))`;;
+
+let REINDEX_I = prove
+ (`!x. REINDEX I x = x`,
+  DBLAMBDA_INDUCT_TAC THEN
+  ASM_REWRITE_TAC[REINDEX; injectivity "dblambda"; SLIDE_I; I_THM]);;
+
+let REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i) ==> REINDEX f x = REINDEX g x`,
+  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
+  REWRITE_TAC[FREES_INVERSION; REINDEX] THEN REPEAT STRIP_TAC THEN
+  REWRITE_TAC[injectivity "dblambda"] THEN ASM_SIMP_TAC[] THENL
+  [ASM_MESON_TAC[]; FIRST_X_ASSUM MATCH_MP_TAC] THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[SLIDE; SUC_INJ] THEN ASM_SIMP_TAC[]);;
+
+let REINDEX_EXTENS_EQ = prove
+ (`!x f g. REINDEX f x = REINDEX g x <=> (!i. i IN FREES x ==> f i = g i)`,
+  SUBGOAL_THEN
+    `!x f g i. REINDEX f x = REINDEX g x /\ i IN FREES x ==> f i = g i`
+    (fun th -> MESON_TAC[th; REINDEX_EXTENS]) THEN
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[REINDEX; injectivity "dblambda"; FREES_INVERSION] THEN
+  SIMP_TAC[] THENL
+  [ASM_MESON_TAC[]; REPEAT STRIP_TAC] THEN
+  SUBGOAL_THEN `SLIDE f (SUC i) = SLIDE g (SUC i)` MP_TAC THENL
+  [FIRST_X_ASSUM MATCH_MP_TAC THEN ASM_REWRITE_TAC[ETA_AX];
+   REWRITE_TAC[SLIDE; SUC_INJ]]);;
+
+let REINDEX_ID = prove
+ (`!x f. REINDEX f x = x <=> (!i. i IN FREES x ==> f i = i)`,
+  REPEAT GEN_TAC THEN
+  GEN_REWRITE_TAC (LAND_CONV o RAND_CONV) [GSYM REINDEX_I] THEN
+  REWRITE_TAC[REINDEX_EXTENS_EQ; I_THM]);;
+
+let REINDEX_REINDEX = prove
+ (`!x f g. REINDEX g (REINDEX f x) = REINDEX (g o f) x`,
+  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
+  ASM_REWRITE_TAC[REINDEX; o_THM; injectivity "dblambda";
+                  REINDEX_EXTENS_EQ; SLIDE_SLIDE]);;
+
+let REINDEX_INJ = prove
+ (`!x y f. (!i j. f i = f j ==> i = j)
+           ==> (REINDEX f x = REINDEX f y <=> x = y)`,
+  DBLAMBDA_INDUCT_TAC THEN DBLAMBDA_CASES_TAC THEN
+  REWRITE_TAC[REINDEX; distinctness "dblambda"] THEN
+  REWRITE_TAC[injectivity "dblambda"] THEN REPEAT STRIP_TAC THEN
+  ASM_MESON_TAC[SLIDE_INJ]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Derivation.                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+let WEAKEN = new_recursive_definition num_RECURSION
+  `(!u:A f. WEAKEN u f 0 = u) /\
+   (!u f i. WEAKEN u f (SUC i) = f i)`;;
+
+let DERIV = new_recursive_definition num_RECURSION
+  `(!f. DERIV f 0 = REF 0) /\
+   (!f i. DERIV f (SUC i) = REINDEX SUC (f i))`;;
+
+let DERIV_REF = prove
+ (`DERIV REF = REF`,
+  REWRITE_TAC[FUN_EQ_THM] THEN INDUCT_TAC THEN REWRITE_TAC[DERIV; REINDEX]);;
+
+let DERIV_EXTENS = prove
+ (`!f g i. DERIV f i = DERIV g i <=> i = 0 \/ f (PRE i) = g (PRE i)`,
+  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN REWRITE_TAC[DERIV] THEN
+  REWRITE_TAC[NOT_SUC; PRE] THEN SIMP_TAC[REINDEX_INJ; SUC_INJ]);;
+
+let DERIV_SLIDE = prove
+ (`!f g i. DERIV g (SLIDE f i) = DERIV (g o f) i`,
+  REPEAT GEN_TAC THEN STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
+  REWRITE_TAC[SLIDE; DERIV; o_THM]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Subst.                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+let SUBST = new_recursive_definition dblambda_RECURSION
+  `(!f i. SUBST f (REF i) = f i) /\
+   (!f x y. SUBST f (APP x y) = APP (SUBST f x) (SUBST f y)) /\
+   (!f x. SUBST f (ABS x) = ABS (SUBST (DERIV f) x))`;;
+
+let SUBST_REF = prove
+ (`!x. SUBST REF x = x`,
+  DBLAMBDA_INDUCT_TAC THEN ASM_REWRITE_TAC[SUBST; DERIV_REF]);;
+
+let SUBST_EXTENS = prove
+ (`!x f g. SUBST f x = SUBST g x <=> (!i. i IN FREES x ==> f i = g i)`,
+  DBLAMBDA_INDUCT_TAC THEN
+  ASM_REWRITE_TAC[SUBST; FREES_INVERSION; DERIV_EXTENS;
+                  injectivity "dblambda"] THEN
+  METIS_TAC[PRE; NOT_SUC; cases "num"]);;
+
+let SUBST_REF_EQ = prove
+ (`!x f. SUBST f x = x <=> (!i. i IN FREES x ==> f i = REF i)`,
+  REPEAT GEN_TAC THEN
+  TRANS_TAC EQ_TRANS `SUBST f x = SUBST REF x` THEN CONJ_TAC THENL
+  [REWRITE_TAC[SUBST_REF]; REWRITE_TAC[SUBST_EXTENS]]);;
+
+let SUBST_REINDEX = prove
+ (`!x f g. SUBST g (REINDEX f x) = SUBST (g o f) x`,
+  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
+  ASM_REWRITE_TAC[SUBST; REINDEX; o_THM; injectivity "dblambda"] THEN
+  REWRITE_TAC[SUBST_EXTENS; o_THM; DERIV_SLIDE]);;
+
+let REINDEX_SLIDE = prove
+ (`!g f i. REINDEX (SLIDE g) (DERIV f i) = DERIV (REINDEX g o f) i`,
+  REPEAT GEN_TAC THEN STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
+  REWRITE_TAC[DERIV; REINDEX] THEN
+  REWRITE_TAC[SLIDE; REINDEX_REINDEX; REINDEX_EXTENS_EQ; o_THM]);;
+
+let REINDEX_SUBST = prove
+ (`!x f g. REINDEX g (SUBST f x) = SUBST (REINDEX g o f) x`,
+  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
+  ASM_REWRITE_TAC[SUBST; REINDEX; o_THM; injectivity "dblambda"] THEN
+  REWRITE_TAC[SUBST_EXTENS; o_THM; REINDEX_SLIDE]);;
+
+let SUBST_DERIV = prove
+ (`!f g i. SUBST (DERIV g) (DERIV f i) = DERIV (SUBST g o f) i`,
+  REPEAT GEN_TAC THEN STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
+  REWRITE_TAC[DERIV; SUBST; SUBST_REINDEX; REINDEX_SUBST;
+              SUBST_EXTENS; o_THM]);;
+
+let SUBST_SUBST = prove
+ (`!x f g. SUBST g (SUBST f x) = SUBST (SUBST g o f) x`,
+  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
+  ASM_REWRITE_TAC[SUBST; o_THM; injectivity "dblambda"] THEN
+  REWRITE_TAC[SUBST_EXTENS; o_THM; SUBST_DERIV]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Classical definition of linear substitution.                              *)
+(* ------------------------------------------------------------------------- *)
+
+let SHIFTI = new_recursive_definition dblambda_RECURSION
+  `(!k n i. SHIFTI k n (REF i) = REF (if i < k then i else n + i)) /\
+   (!k n x y. SHIFTI k n (APP x y) = APP (SHIFTI k n x) (SHIFTI k n y)) /\
+   (!k n x. SHIFTI k n (ABS x) = ABS (SHIFTI (SUC k) n x))`;;
+
+let SUBSTI1 = new_recursive_definition dblambda_RECURSION
+  `(!k w i. SUBSTI1 k w (REF i) = if i = k then SHIFTI 0 k w
+                                  else if i < k then REF i
+                                  else REF (i-1)) /\
+   (!k w t u. SUBSTI1 k w (APP t u) = APP (SUBSTI1 k w t) (SUBSTI1 k w u)) /\
+   (!k w t. SUBSTI1 k w (ABS t) = ABS (SUBSTI1 (k+1) w t))`;;
+
+let SUBST1 = new_definition
+  `SUBST1 u t = SUBSTI1 0 u t`;;
+
+(* ------------------------------------------------------------------------- *)
+(* Link between linear and parallel substitution.                            *)
+(* ------------------------------------------------------------------------- *)
+
+let ITER_SLIDE = prove
+ (`!n k i. ITER k SLIDE ((+) n) i = if i < k then i else n + i`,
+  GEN_TAC THEN INDUCT_TAC THEN REWRITE_TAC[ITER] THENL
+  [REWRITE_TAC[LT]; GEN_TAC] THEN
+  STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THENL
+  [REWRITE_TAC[SLIDE; LT_0; ITER]; ALL_TAC] THEN
+  ASM_REWRITE_TAC[LT_SUC; SLIDE] THEN ARITH_TAC);;
+
+let SHIFTI_EQ_REINDEX = prove
+ (`!n t k. SHIFTI k n t = REINDEX (ITER k SLIDE ((+) n)) t`,
+  GEN_TAC THEN DBLAMBDA_INDUCT_TAC THEN
+  ASM_REWRITE_TAC[SHIFTI; REINDEX; injectivity "dblambda"] THENL
+  [REWRITE_TAC[ITER_SLIDE]; ALL_TAC] THEN
+  GEN_TAC THEN REWRITE_TAC[REINDEX_EXTENS_EQ; ITER]);;
+
+let ITER_DERIV = prove
+ (`!k i. ITER k DERIV f i =
+         if i < k then REF i else REINDEX ((+) k) (f (i - k))`,
+  INDUCT_TAC THEN REWRITE_TAC[ITER] THEN GEN_TAC THENL
+  [MATCH_MP_TAC EQ_SYM THEN REWRITE_TAC[REINDEX_ID; LT; SUB_0] THEN ARITH_TAC;
+   ALL_TAC] THEN
+  STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
+  ASM_REWRITE_TAC[DERIV; LT_0; LT_SUC] THEN
+  COND_CASES_TAC THEN REWRITE_TAC[REINDEX; REINDEX_REINDEX] THEN
+  REWRITE_TAC[SUB_SUC; REINDEX_EXTENS_EQ; o_THM; ADD]);;
+
+let SUBSTI1_EQ_SUBST = prove
+ (`!u t i. SUBSTI1 i u t =
+           SUBST (ITER i DERIV (\i. if i = 0 then u else REF (i - 1))) t`,
+  GEN_TAC THEN DBLAMBDA_INDUCT_TAC THEN GEN_TAC THEN
+  ASM_REWRITE_TAC[SUBST; SUBSTI1; injectivity "dblambda";
+                  SUBST_EXTENS; ITER; GSYM ADD1] THEN
+  REWRITE_TAC[ITER_DERIV] THEN COND_CASES_TAC THENL
+  [POP_ASSUM SUBST1_TAC THEN
+   REWRITE_TAC[LT_REFL; SUB_REFL; SHIFTI_EQ_REINDEX; ITER_POINTLESS; I_THM];
+   ALL_TAC] THEN
+  COND_CASES_TAC THEN ASM_REWRITE_TAC[] THEN
+  COND_CASES_TAC THEN REWRITE_TAC[REINDEX; injectivity "dblambda"] THEN
+  ASM_ARITH_TAC);;
+
+let SUBST1_EQ_SUBST = prove
+ (`!t u. SUBST1 u t = SUBST (\i. if i = 0 then u else REF (i - 1)) t`,
+  REWRITE_TAC[SUBST1; SUBSTI1_EQ_SUBST; ITER]);;
+
+let SUBST1_EQ_SUBST = prove
+ (`!t u. SUBST1 u t = SUBST (WEAKEN u REF) t`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[SUBST1_EQ_SUBST; SUBST_EXTENS] THEN
+  INDUCT_TAC THEN DISCH_TAC THEN
+  REWRITE_TAC[WEAKEN; NOT_SUC; REINDEX; o_THM] THEN
+  AP_TERM_TAC THEN ARITH_TAC);;
+
+let SUBST1_SUBST1 = prove
+ (`!t u w. SUBST1 w (SUBST1 u t) = SUBST1 (SUBST1 w u) (SUBSTI1 1 w t)`,
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[SUBST1; SUBSTI1_EQ_SUBST; SUBST_SUBST; SUBST_EXTENS;
+              ITER_BINARY; o_THM] THEN
+  NUM_CASES_TAC THEN DISCH_TAC THEN REWRITE_TAC[DERIV; SUBST; NOT_SUC] THEN
+  MATCH_MP_TAC EQ_SYM THEN
+  REWRITE_TAC[SUBST_REINDEX; SUBST_REF_EQ; o_THM; NOT_SUC;
+              ARITH_RULE `SUC i - 1 = i`]);;

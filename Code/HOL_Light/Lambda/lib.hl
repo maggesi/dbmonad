@@ -12,9 +12,6 @@
 (*  Some tactics.                                                            *)
 (* ------------------------------------------------------------------------- *)
 
-let TRANS_TAC t =
-  MATCH_MP_TAC EQ_TRANS THEN EXISTS_TAC t THEN CONJ_TAC;;
-
 let NUM_CASES_TAC =
   let th = prove
     (`!P. P 0 /\ (!n. P (SUC n)) ==> (!n. P n)`,
@@ -68,6 +65,23 @@ let PREIMAGE_o = prove
   REWRITE_TAC[PREIMAGE; o_DEF; EXTENSION; IN_ELIM_THM]);;
 
 (* ------------------------------------------------------------------------- *)
+(* Iteration.                                                                *)
+(* ------------------------------------------------------------------------- *)
+
+let ITER_BINARY = prove
+ (`(!n f x:A. ITER (NUMERAL n) f x = ITER n f x) /\
+   (!f x:A. ITER _0 f x = x) /\
+   (!f n x:A. ITER (BIT0 n) f x = ITER n (f o f) x) /\
+   (!f n x:A. ITER (BIT1 n) f x = ITER n (f o f) (f x))`,
+  CONJ_TAC THENL [REWRITE_TAC[NUMERAL]; ALL_TAC] THEN
+  CONJ_TAC THENL [REWRITE_TAC[DENUMERAL (CONJUNCT1 ITER)]; ALL_TAC] THEN
+  CLAIM_TAC "rmk" `!f n x:A. ITER (n + n) f x = ITER n (f o f) x` THENL
+  [GEN_TAC THEN INDUCT_TAC THEN GEN_TAC THENL
+   [NUM_REDUCE_TAC THEN REWRITE_TAC[ITER];
+    ASM_REWRITE_TAC[ADD; ADD_SUC; ITER; o_THM]];
+   ASM_REWRITE_TAC[BIT0; BIT1; ITER_ALT]]);;
+
+(* ------------------------------------------------------------------------- *)
 (*  Misc.                                                                    *)
 (* ------------------------------------------------------------------------- *)
 
@@ -91,3 +105,4 @@ let TRIVIAL_ARITH = prove
    (!n. n < SUC 0 <=> n = 0)`,
    REWRITE_TAC[NOT_SUC; PRE; LE; LT_0; LT; SUC_INJ;
                ADD; ADD_0; ADD_SUC; SUB_0; SUB_SUC; LT_SUC]);;
+

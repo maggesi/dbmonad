@@ -51,29 +51,29 @@ let DBMONAD_UNIT_UNIQUE = prove
           ==> DBMONAD_UNIT op = i`,
   REWRITE_TAC[DBMONAD_DEF; DBMONAD_UNIT; FUN_EQ_THM] THEN MESON_TAC[]);;
 
-let DBMONAD_SHIFT = new_definition
-  `!op k n x:A. DBMONAD_SHIFT op k n x =
+let DBMONAD_SHIFTI = new_definition
+  `!op k n x:A. DBMONAD_SHIFTI op k n x =
                 op (\i. if i < k
                         then DBMONAD_UNIT op i
                         else DBMONAD_UNIT op (n + i))
                    x`;;
 
-let DBMONAD_OP_SHIFT = prove
+let DBMONAD_OP_SHIFTI = prove
  (`!op f k n x:A. DBMONAD op
-                  ==> op f (DBMONAD_SHIFT op k n x) =
+                  ==> op f (DBMONAD_SHIFTI op k n x) =
                       op (\i. f (if i < k then i else n + i)) x`,
   REWRITE_TAC[DBMONAD] THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[DBMONAD_SHIFT] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+  ASM_REWRITE_TAC[DBMONAD_SHIFTI] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
   REWRITE_TAC[FUN_EQ_THM] THEN GEN_TAC THEN COND_CASES_TAC THEN
   ASM_REWRITE_TAC[]);;
 
-let DBMONAD_SHIFT_OP = prove
+let DBMONAD_SHIFTI_OP = prove
  (`!op f k n x:A. DBMONAD op
-                  ==> DBMONAD_SHIFT op k n (op f x) =
-                      op (DBMONAD_SHIFT op k n o f) x`,
+                  ==> DBMONAD_SHIFTI op k n (op f x) =
+                      op (DBMONAD_SHIFTI op k n o f) x`,
   REWRITE_TAC[DBMONAD] THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[DBMONAD_SHIFT] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
-  REWRITE_TAC[FUN_EQ_THM; o_THM; DBMONAD_SHIFT] THEN GEN_TAC);;
+  ASM_REWRITE_TAC[DBMONAD_SHIFTI] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+  REWRITE_TAC[FUN_EQ_THM; o_THM; DBMONAD_SHIFTI] THEN GEN_TAC);;
 
 let DBMONAD_MOR = new_definition
   `!op1 op2 h:A->B.

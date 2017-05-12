@@ -82,6 +82,16 @@ let ITER_BINARY = prove
    ASM_REWRITE_TAC[BIT0; BIT1; ITER_ALT]]);;
 
 (* ------------------------------------------------------------------------- *)
+(* Reflexive, transitive, simmetric closure.                                 *)
+(* ------------------------------------------------------------------------- *)
+
+let RSTC_MAP = prove
+ (`!R f x y:A. (!u v. R u v ==> R (f u) (f v)) /\ RSTC R x y
+             ==> RSTC R (f x) (f y)`,
+  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[IMP_CONJ; RIGHT_FORALL_IMP_THM] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RSTC_INDUCT THEN ASM_MESON_TAC[RSTC_RULES]);;
+
+(* ------------------------------------------------------------------------- *)
 (*  Misc.                                                                    *)
 (* ------------------------------------------------------------------------- *)
 

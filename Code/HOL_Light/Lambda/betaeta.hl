@@ -14,247 +14,31 @@ needs "Library/iter.ml";;
 make_overloadable "===" `:A->A->bool`;;
 
 (* ------------------------------------------------------------------------- *)
-(*  Basic operations on lambda terms.                                        *)
-(* ------------------------------------------------------------------------- *)
-
-let SLIDEI = new_definition
-  `!f k i. SLIDEI k f i = if i < k then REF i else SHIFTI 0 k (f (i - k))`;;
-
-let SUBSTI = new_recursive_definition dblambda_RECURSION
-  `(!f i. SUBSTI f (REF i) = f i) /\
-   (!f x y. SUBSTI f (APP x y) = APP (SUBSTI f x) (SUBSTI f y)) /\
-   (!f x. SUBSTI f (ABS x) = ABS (SUBSTI (SLIDEI (SUC 0) f) x))`;;
-
-let APP0 = new_definition
-  `APP0 x = APP (SHIFTI 0 (SUC 0) x) (REF 0)`;;
-
-(* ------------------------------------------------------------------------- *)
-(*  Trivial lemmas                                                           *)
-(* ------------------------------------------------------------------------- *)
-
-let IF_REF = prove
- (`!b x y. (if b then REF x else REF y) = REF (if b then x else y)`,
-  REWRITE_TAC[IF_DISTRIB]);;
-
-let REF_INJ = MESON[injectivity "dblambda"]
-  `!x y. REF x = REF y <=> x = y`;;
-
-(* ------------------------------------------------------------------------- *)
-(*  SHIFTI                                                                   *)
-(* ------------------------------------------------------------------------- *)
-
-let SHIFTI_0 = prove
- (`!x k. SHIFTI k 0 x = x`,
-  MATCH_MP_TAC dblambda_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[SHIFTI; ADD] THEN COND_CASES_TAC
-  THEN REWRITE_TAC[]);;
-
-let SHIFTI_INJ = prove
- (`!x y n k. SHIFTI k n x = SHIFTI k n y <=> x = y`,
-  DBLAMBDA_INDUCT_TAC THEN DBLAMBDA_CASES_TAC THEN
-  ASM_REWRITE_TAC[SHIFTI; injectivity "dblambda";
-                  distinctness "dblambda"] THEN
-  ARITH_TAC);;
-
-let SLIDEI_INJ = prove
- (`!f g k. (!i. SLIDEI k f i = SLIDEI k g i) <=> (!i. f i = g i)`,
-  REPEAT GEN_TAC THEN EQ_TAC THEN REWRITE_TAC[SLIDEI] THENL
-  [DISCH_THEN (ASSUME_TAC o REWRITE_RULE [SHIFTI_INJ;
-   ARITH_RULE `~(i + k < k) /\ (i + k) - k = i`] o SPEC `i + k`) THEN
-   ASM_REWRITE_TAC[];
-   REWRITE_TAC[GSYM FUN_EQ_THM] THEN
-   DISCH_THEN SUBST1_TAC THEN REFL_TAC]);;
-
-let LE_SHIFTI_COMM = prove
- (`!x h k n m. h <= k ==> SHIFTI h n (SHIFTI k m x) =
-                          SHIFTI (k + n) m (SHIFTI h n x)`,
-  DBLAMBDA_INDUCT_TAC THEN REPEAT STRIP_TAC THEN
-  ASM_SIMP_TAC[SHIFTI; injectivity "dblambda"; LE_SUC; ADD] THEN
-  ASM_ARITH_TAC);;
-
-let LE_SHIFTI_COMM_0 = prove
- (`!x k n m. SHIFTI 0 n (SHIFTI k m x) =
-             SHIFTI (k + n) m (SHIFTI 0 n x)`,
-  SIMP_TAC[SPECL [`x:dblambda`; `0`] LE_SHIFTI_COMM; LE_0]);;
-
-(* Symmetric of LE_SHIFTI_COMM *)
-let GE_SHIFTI_COMM = prove
- (`!x h k n m. m + k <= h ==> SHIFTI h n (SHIFTI k m x) =
-                              SHIFTI k m (SHIFTI (h - m) n x)`,
-  REPEAT STRIP_TAC THEN
-  SUBGOAL_THEN `k <= h - m /\ h - m + m = h`
-   (fun th -> SIMP_TAC[LE_SHIFTI_COMM; th]) THEN
-  ASM_ARITH_TAC);;
-
-let SHIFTI_SHIFTI = prove
- (`!x n m h k. k <= h /\ h <= k + m
-               ==> SHIFTI h n (SHIFTI k m x) = SHIFTI k (m + n) x`,
-  DBLAMBDA_INDUCT_TAC THEN REPEAT STRIP_TAC THEN
-  ASM_SIMP_TAC[SHIFTI; injectivity "dblambda"; LE_SUC; ADD] THEN
-  ASM_ARITH_TAC);;
-
-let SHIFTI_SHIFTI_0 = prove
- (`(!k n m x. SHIFTI k n (SHIFTI k m x) = SHIFTI k (m + n) x) /\
-   (!k n x. SHIFTI k n (SHIFTI 0 k x) = SHIFTI 0 (k + n) x)`,
-  REPEAT STRIP_TAC THEN MATCH_MP_TAC SHIFTI_SHIFTI THEN
-  REWRITE_TAC[LE_0; LE_REFL; ADD] THEN ARITH_TAC);;
-
-let SLIDEI_0 = prove
- (`!f. SLIDEI 0 f = f`,
-  REWRITE_TAC[FUN_EQ_THM; SLIDEI; SHIFTI_0; LT; SUB_0]);;
-
-let SLIDEI_REF = prove
- (`SLIDEI k REF = REF`,
-  REWRITE_TAC[FUN_EQ_THM; SLIDEI; SHIFTI; IF_REF; REF_INJ; LT] THEN
-  ARITH_TAC);;
-
-let SLIDEI_SLIDEI = prove
- (`!f h k. SLIDEI h (SLIDEI k f) = SLIDEI (h + k) f`,
-  REPEAT GEN_TAC THEN
-  REWRITE_TAC[SLIDEI; FUN_EQ_THM; ISPEC `SHIFTI 0 h` (GSYM IF_DISTRIB);
-              SHIFTI; SHIFTI_SHIFTI_0; LT] THEN
-  GEN_TAC THEN COND_CASES_TAC THENL
-  [ASM_SIMP_TAC[ARITH_RULE `x < h ==> x < h + k`];
-   ASM_SIMP_TAC[ARITH_RULE `~(x < h) ==> (x - h < k <=> x < h + k)`] THEN
-  COND_CASES_TAC THEN REWRITE_TAC[REF_INJ; ADD_AC] THEN
-  REPEAT AP_TERM_TAC THEN ASM_ARITH_TAC]);;
-
-(* ------------------------------------------------------------------------- *)
-(*  SUBSTI                                                                   *)
-(* ------------------------------------------------------------------------- *)
-
-let SUBSTI_FUN_EXTENS = prove
- (`!f g x. (!n. f n = g n) ==> SUBSTI f x = SUBSTI g x`,
-  REPEAT STRIP_TAC THEN AP_THM_TAC THEN AP_TERM_TAC THEN
-  ASM_REWRITE_TAC[FUN_EQ_THM]);;
-
-let SUBSTI_LUNIT = prove
- (`!x. SUBSTI REF x = x`,
-  MATCH_MP_TAC dblambda_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[SUBSTI; SLIDEI_REF]);;
-
-let SUBSTI_LUNIT_IMP = prove
- (`!f x. (!i. f i = REF i) ==> SUBSTI f x = x`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[GSYM FUN_EQ_THM] THEN
-  DISCH_TAC THEN ASM_SIMP_TAC[SUBSTI_LUNIT]);;
-
-let SHIFTI_EQ_SUBSTI = prove
- (`!x k n. SHIFTI k n x = SUBSTI (\i. if i < k then REF i else REF (n + i)) x`,
-  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
-  ASM_REWRITE_TAC[SHIFTI; SUBSTI; IF_REF; injectivity "dblambda"] THEN
-  MATCH_MP_TAC SUBSTI_FUN_EXTENS THEN
-  REWRITE_TAC[SLIDEI; SHIFTI; LT; IF_REF; REF_INJ] THEN
-  NUM_CASES_TAC THEN REWRITE_TAC[TRIVIAL_ARITH; IF_DISTRIB; SUC_INJ] THEN
-  ARITH_TAC);;
-
-let SHIFTI_SUBSTI = prove
- (`!x f k n. SHIFTI k n (SUBSTI f x) = SUBSTI (SHIFTI k n o f) x`,
-  MATCH_MP_TAC dblambda_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[SHIFTI; SUBSTI; injectivity "dblambda"; o_THM] THEN
-  MATCH_MP_TAC SUBSTI_FUN_EXTENS THEN GEN_TAC THEN
-  REWRITE_TAC[o_THM; SLIDEI; TRIVIAL_ARITH] THEN COND_CASES_TAC THEN
-  ASM_REWRITE_TAC[SHIFTI; LE_SHIFTI_COMM_0; TRIVIAL_ARITH]);;
-
-let SUBSTI_SHIFTI = prove
- (`!x f k n. SUBSTI f (SHIFTI k n x) =
-             SUBSTI (\i. if i < k then f i else f (n + i)) x`,
-  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
-  ASM_REWRITE_TAC[SHIFTI; SUBSTI; IF_DISTRIB; injectivity "dblambda"] THEN
-  MATCH_MP_TAC SUBSTI_FUN_EXTENS THEN NUM_CASES_TAC THEN
-  ASM_REWRITE_TAC[SLIDEI; TRIVIAL_ARITH] THEN
-  ASM_CASES_TAC `n' < k` THEN ASM_REWRITE_TAC[TRIVIAL_ARITH]);;
-
-let SHIFTI_SUBSTI_COMM = prove
- (`!x f n. SHIFTI 0 n (SUBSTI f x) = SUBSTI (SLIDEI n f) (SHIFTI 0 n x)`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[SHIFTI_SUBSTI; SUBSTI_SHIFTI; LT] THEN
-  MATCH_MP_TAC SUBSTI_FUN_EXTENS THEN GEN_TAC THEN
-  REWRITE_TAC[o_THM; SLIDEI] THEN
-  REWRITE_TAC[ARITH_RULE `~(n + n' < n) /\ (n + n') - n = n'`]);;
-
-let SUBSTI_ASSOC = prove
- (`!x f g. SUBSTI f (SUBSTI g x) = SUBSTI (SUBSTI f o g) x`,
-  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
-  ASM_REWRITE_TAC[SUBSTI; injectivity "dblambda"; o_THM] THEN
-  MATCH_MP_TAC SUBSTI_FUN_EXTENS THEN GEN_TAC THEN
-  REWRITE_TAC[o_THM; SLIDEI] THEN COND_CASES_TAC THEN
-  ASM_REWRITE_TAC[SHIFTI_SUBSTI_COMM; SUBSTI; SLIDEI]);;
-
-let SHIFTI_LEFT_INV = prove
- (`!k n x. SUBSTI (SLIDEI k (\i. REF (i - n))) (SHIFTI k n x) = x`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[SUBSTI_SHIFTI] THEN
-  MATCH_MP_TAC SUBSTI_LUNIT_IMP THEN
-  REWRITE_TAC[SLIDEI; SHIFTI; LT; IF_REF; REF_INJ] THEN ARITH_TAC);;
-
-let SHIFTI_0_LEFT_INV = MESON[SHIFTI_LEFT_INV; SLIDEI_0]
- `!n x. SUBSTI (\i. REF (i - n)) (SHIFTI 0 n x) = x`;;
-
-(* ------------------------------------------------------------------------- *)
-(*  APP0                                                                     *)
-(* ------------------------------------------------------------------------- *)
-
-let APP0_SHIFTI = prove
- (`!x k n. APP0 (SHIFTI k n x) = SHIFTI (SUC k) n (APP0 x)`,
-  REWRITE_TAC[APP0; SHIFTI; LE_SHIFTI_COMM_0; TRIVIAL_ARITH]);;
-
-let SUBSTI_APP0 = prove
- (`!x f. SUBSTI f (APP0 x) = APP (SUBSTI (f o SUC) x) (f 0)`,
-  REWRITE_TAC[APP0; SUBSTI; o_DEF; SUBSTI_SHIFTI; TRIVIAL_ARITH]);;
-
-let APP0_SUBSTI = prove
- (`!x f. APP0 (SUBSTI f x) = SUBSTI (SLIDEI (SUC 0) f) (APP0 x)`,
-  REWRITE_TAC[APP0; SUBSTI; SLIDEI; SHIFTI_SUBSTI_COMM; TRIVIAL_ARITH]);;
-
-let APP_EQ_APP0 = prove
- (`!x y. APP x y = SUBSTI (\n. if n = 0 then y else REF (PRE n)) (APP0 x)`,
-  REWRITE_TAC[SUBSTI_APP0; o_DEF; TRIVIAL_ARITH; ETA_AX; SUBSTI_LUNIT]);;
-
-let dblambda_INDUCT_ALT = prove
- (`!P. (!i. P (REF i)) /\
-       (!x. P x ==> P (APP0 x)) /\
-       (!x. P x ==> P (ABS x)) /\
-       (!f x. (!i. P (f i)) /\ P x ==> P (SUBSTI f x))
-       ==> (!x. P x)`,
-  GEN_TAC THEN STRIP_TAC THEN MATCH_MP_TAC dblambda_INDUCT THEN
-  REPEAT STRIP_TAC THEN ASM_SIMP_TAC[APP_EQ_APP0] THEN
-  FIRST_X_ASSUM MATCH_MP_TAC THEN ASM_SIMP_TAC[] THEN
-  GEN_TAC THEN COND_CASES_TAC THEN ASM_REWRITE_TAC[]);;
-
-(* ------------------------------------------------------------------------- *)
 (*  DBLAMBDA_BETA                                                            *)
 (* ------------------------------------------------------------------------- *)
 
 let DBLAMBDA_BETA_RULES, DBLAMBDA_BETA_INDUCT, DBLAMBDA_BETA_CASES =
   new_inductive_definition
-  `!x y. DBLAMBDA_BETA (APP (ABS x) y)
-           (SUBSTI (\n. if n = 0 then y else REF (PRE n)) x)`;;
+  `!x y. DBLAMBDA_BETA (APP (ABS x) y) (SUBST (WEAKEN y REF) x)`;;
 
-let DBLAMBDA_BETA_THM = prove
- (`!x y z. DBLAMBDA_BETA (APP (ABS x) y) z <=>
-           z = SUBSTI (\n. if n = 0 then y else REF (PRE n)) x`,
-  REPEAT GEN_TAC THEN EQ_TAC THEN SIMP_TAC[DBLAMBDA_BETA_RULES] THEN
-  ONCE_REWRITE_TAC[DBLAMBDA_BETA_CASES] THEN
-  REWRITE_TAC[injectivity "dblambda"] THEN STRIP_TAC THEN ASM_REWRITE_TAC[]);;
+let DBLAMBDA_BETA_INVERSION = prove
+ (`!x y z. DBLAMBDA_BETA (APP (ABS x) y) z <=> z = SUBST (WEAKEN y REF) x`,
+  REPEAT GEN_TAC THEN GEN_REWRITE_TAC LAND_CONV [DBLAMBDA_BETA_CASES] THEN
+  REWRITE_TAC[injectivity "dblambda"] THEN MESON_TAC[]);;
 
-let SHIFTI_BETA = prove
- (`!x y k n. DBLAMBDA_BETA x y
-             ==> DBLAMBDA_BETA (SHIFTI k n x) (SHIFTI k n y)`,
-  REPEAT GEN_TAC THEN
-  DISCH_THEN (STRIP_ASSUME_TAC o REWRITE_RULE [DBLAMBDA_BETA_CASES]) THEN
-  POP_ASSUM_LIST (MAP_EVERY SUBST1_TAC) THEN
-  REWRITE_TAC[SHIFTI; DBLAMBDA_BETA_THM; SHIFTI_SUBSTI; SUBSTI_SHIFTI] THEN
-  MATCH_MP_TAC SUBSTI_FUN_EXTENS THEN NUM_CASES_TAC THEN
-  REWRITE_TAC[TRIVIAL_ARITH; o_THM; SHIFTI; IF_REF]);;
+let DBLAMBDA_BETA_SUBST = prove
+ (`!f x y. DBLAMBDA_BETA x y ==> DBLAMBDA_BETA (SUBST f x) (SUBST f y)`,
+  GEN_TAC THEN MATCH_MP_TAC DBLAMBDA_BETA_INDUCT THEN
+  REPEAT GEN_TAC THEN REWRITE_TAC[SUBST] THEN
+  REWRITE_TAC[DBLAMBDA_BETA_INVERSION; SUBST_SUBST; SUBST_EXTENS; o_THM] THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV; SUBST; WEAKEN] THEN
+  DISCH_THEN (K ALL_TAC) THEN REWRITE_TAC[SUBST_REINDEX] THEN
+  MATCH_MP_TAC EQ_SYM THEN REWRITE_TAC[SUBST_REF_EQ; o_THM; WEAKEN]);;
 
-let SUBSTI_BETA_TERM = prove
- (`!x y f. DBLAMBDA_BETA x y ==> DBLAMBDA_BETA (SUBSTI f x) (SUBSTI f y)`,
-  REPEAT GEN_TAC THEN
-  DISCH_THEN (STRIP_ASSUME_TAC o REWRITE_RULE [DBLAMBDA_BETA_CASES]) THEN
-  POP_ASSUM_LIST (MAP_EVERY SUBST1_TAC) THEN
-  REWRITE_TAC[SUBSTI; DBLAMBDA_BETA_THM; SUBSTI_ASSOC] THEN
-  MATCH_MP_TAC SUBSTI_FUN_EXTENS THEN NUM_CASES_TAC THEN
-  REWRITE_TAC[SUBSTI; o_THM; SLIDEI; TRIVIAL_ARITH] THEN
-  REWRITE_TAC[SUBSTI_SHIFTI; TRIVIAL_ARITH] THEN
-  REWRITE_TAC[ETA_AX; SUBSTI_LUNIT]);;
+let DBLAMBDA_BETA_REINDEX = prove
+ (`!f x y. DBLAMBDA_BETA x y ==> DBLAMBDA_BETA (REINDEX f x) (REINDEX f y)`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[REINDEX_EQ_SUBST] THEN
+  ASM_MESON_TAC[DBLAMBDA_BETA_SUBST]);;
 
 (* ------------------------------------------------------------------------- *)
 (*  DBLAMBDA_ETA                                                             *)
@@ -262,116 +46,19 @@ let SUBSTI_BETA_TERM = prove
 
 let DBLAMBDA_ETA_RULES, DBLAMBDA_ETA_INDUCT, DBLAMBDA_ETA_CASES =
   new_inductive_definition
-  `!x. DBLAMBDA_ETA (ABS (APP (SHIFTI 0 (SUC 0) x) (REF 0))) x`;;
+  `!x. DBLAMBDA_ETA (ABS (APP (REINDEX SUC x) (REF 0))) x`;;
 
-let DBLAMBDA_ETA_CASES_ALT = prove
- (`!x y. DBLAMBDA_ETA x y <=> x = ABS (APP0 y)`,
-  REWRITE_TAC[DBLAMBDA_ETA_CASES; APP0]);;
+let DBLAMBDA_ETA_SUBST = prove
+ (`!f x y. DBLAMBDA_ETA x y ==> DBLAMBDA_ETA (SUBST f x) (SUBST f y)`,
+  GEN_TAC THEN MATCH_MP_TAC DBLAMBDA_ETA_INDUCT THEN GEN_TAC THEN
+  REWRITE_TAC[SUBST; DERIV; SUBST_REINDEX; DBLAMBDA_ETA_CASES; REINDEX_SUBST;
+              SUBST_EXTENS; o_THM; injectivity "dblambda"] THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV]);;
 
-let SHIFTI_ETA = prove
- (`!x y k n. DBLAMBDA_ETA x y ==> DBLAMBDA_ETA (SHIFTI k n x) (SHIFTI k n y)`,
-  SUBGOAL_THEN `!x y. DBLAMBDA_ETA x y
-                      ==> (!n k. DBLAMBDA_ETA (SHIFTI k n x) (SHIFTI k n y))`
-    (fun th -> MESON_TAC[th]) THEN
-  MATCH_MP_TAC DBLAMBDA_ETA_INDUCT THEN REPEAT GEN_TAC THEN
-  REWRITE_TAC[DBLAMBDA_ETA_CASES; SHIFTI; TRIVIAL_ARITH; LE_SHIFTI_COMM_0]);;
-
-let SUBSTI_ETA_TERM = prove
- (`!x y f. DBLAMBDA_ETA x y ==> DBLAMBDA_ETA (SUBSTI f x) (SUBSTI f y)`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[DBLAMBDA_ETA_CASES_ALT] THEN
-  STRIP_TAC THEN ASM_REWRITE_TAC[SUBSTI; APP0_SUBSTI]);;
-
-(* ------------------------------------------------------------------------- *)
-(*  DBLAMBDA_REL                                                             *)
-(* ------------------------------------------------------------------------- *)
-
-let DBLAMBDA_REL_RULES, DBLAMBDA_REL_INDUCT, DBLAMBDA_REL_CASES =
-  new_inductive_definition
-  `(!x y. R x y ==> DBLAMBDA_REL R x y) /\
-   (!x y. DBLAMBDA_REL R x y ==> DBLAMBDA_REL R (ABS x) (ABS y)) /\
-   (!x y z. DBLAMBDA_REL R x y ==> DBLAMBDA_REL R (APP x z) (APP y z)) /\
-   (!x y z. DBLAMBDA_REL R x y ==> DBLAMBDA_REL R (APP z x) (APP z y))`;;
-
-let DBLAMBDA_EQV = new_definition
-  `!R. DBLAMBDA_EQV R = RSTC (DBLAMBDA_REL R)`;;
-
-let DBLAMBDA_EQV_INC = prove
- (`!R x y. R x y ==> DBLAMBDA_EQV R x y`,
-  SIMP_TAC[DBLAMBDA_EQV; RSTC_INC; DBLAMBDA_REL_RULES]);;
-
-let DBLAMBDA_EQV_REFL = prove
- (`!R x. DBLAMBDA_EQV R x x`,
-  REWRITE_TAC[DBLAMBDA_EQV; RSTC_REFL]);;
-
-let DBLAMBDA_EQV_REFL_IMP = MESON[DBLAMBDA_EQV_REFL]
-  `!R x y. x = y ==> DBLAMBDA_EQV R x y`;;
-
-let DBLAMBDA_EQV_SYM = prove
- (`!R x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R y x`,
-  REWRITE_TAC[DBLAMBDA_EQV; RSTC_SYM]);;
-
-let DBLAMBDA_EQV_TRANS = prove
- (`!R x y z. DBLAMBDA_EQV R x y /\ DBLAMBDA_EQV R y z ==> DBLAMBDA_EQV R x z`,
-  REWRITE_TAC[DBLAMBDA_EQV; RSTC_TRANS]);;
-
-let DBLAMBDA_EQV_ABS = prove
- (`!R x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R (ABS x) (ABS y)`,
-  GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN MATCH_MP_TAC RSTC_INDUCT THEN
-  MESON_TAC[RSTC_RULES; DBLAMBDA_REL_RULES]);;
-
-let DBLAMBDA_EQV_APP_L = prove
- (`!R z x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R (APP x z) (APP y z)`,
-  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN
-  MATCH_MP_TAC RSTC_INDUCT THEN MESON_TAC[RSTC_RULES; DBLAMBDA_REL_RULES]);;
-
-let DBLAMBDA_EQV_APP_R = prove
- (`!R z x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R (APP z x) (APP z y)`,
-  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN
-  MATCH_MP_TAC RSTC_INDUCT THEN MESON_TAC[RSTC_RULES; DBLAMBDA_REL_RULES]);;
-
-let DBLAMBDA_EQV_APP =
-  MESON[DBLAMBDA_EQV_TRANS; DBLAMBDA_EQV_APP_L; DBLAMBDA_EQV_APP_R]
-  `!R x1 x2 y1 y2. DBLAMBDA_EQV R x1 y1 /\ DBLAMBDA_EQV R x2 y2
-                   ==> DBLAMBDA_EQV R (APP x1 x2) (APP y1 y2)`;;
-
-let DBLAMBDA_EQV_RULES =
-  MESON[DBLAMBDA_EQV_INC; DBLAMBDA_EQV_APP; DBLAMBDA_EQV_ABS;
-        DBLAMBDA_EQV_REFL; DBLAMBDA_EQV_SYM; DBLAMBDA_EQV_TRANS]
-  `!R. (!x y. R x y ==> DBLAMBDA_EQV R x y) /\
-       (!x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R (ABS x) (ABS y)) /\
-       (!x1 x2 y1 y2. DBLAMBDA_EQV R x1 y1 /\ DBLAMBDA_EQV R x2 y2
-                      ==> DBLAMBDA_EQV R (APP x1 x2) (APP y1 y2)) /\
-       (!x. DBLAMBDA_EQV R x x) /\
-       (!x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R y x) /\
-       (!x y z. DBLAMBDA_EQV R x y /\ DBLAMBDA_EQV R y z
-                ==> DBLAMBDA_EQV R x z)`;;
-
-let DBLAMBDA_EQV_CASES = prove
- (`!a0 a1.
-      DBLAMBDA_EQV R a0 a1 <=>
-      R a0 a1 \/
-      (?x1 y1 x2 y2.
-         a0 = APP x1 x2 /\ a1 = APP y1 y2 /\
-         DBLAMBDA_EQV R x1 y1 /\ DBLAMBDA_EQV R x2 y2) \/
-      (?x y. a0 = ABS x /\ a1 = ABS y /\ DBLAMBDA_EQV R x y) \/
-      DBLAMBDA_EQV R a1 a0 \/
-      (?y. DBLAMBDA_EQV R a0 y /\ DBLAMBDA_EQV R y a1)`,
-  REPEAT GEN_TAC THEN EQ_TAC THENL
-  [REWRITE_TAC[DBLAMBDA_EQV] THEN MESON_TAC[RSTC_CASES; RSTC_RULES];
-   MESON_TAC[DBLAMBDA_EQV_RULES]]);;
-
-let DBLAMBDA_EQV_INDUCT = prove
- (`!RR R. (!x y. R x y ==> RR x y) /\
-          (!x1 y1 x2 y2.
-             RR x1 y1 /\ RR x2 y2 ==> RR (APP x1 x2) (APP y1 y2)) /\
-          (!x y. RR x y ==> RR (ABS x) (ABS y)) /\
-          (!x. RR x x) /\
-          (!x y. RR x y ==> RR y x) /\
-          (!x y z. RR x y /\ RR y z ==> RR x z)
-          ==> (!a0 a1. DBLAMBDA_EQV R a0 a1 ==> RR a0 a1)`,
-  GEN_TAC THEN GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN
-  MATCH_MP_TAC RSTC_INDUCT THEN CONJ_TAC THEN
-  TRY (MATCH_MP_TAC DBLAMBDA_REL_INDUCT) THEN ASM_MESON_TAC[]);;
+let DBLAMBDA_ETA_REINDEX = prove
+ (`!f x y. DBLAMBDA_ETA x y ==> DBLAMBDA_ETA (REINDEX f x) (REINDEX f y)`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[REINDEX_EQ_SUBST] THEN
+  ASM_MESON_TAC[DBLAMBDA_ETA_SUBST]);;
 
 (* ------------------------------------------------------------------------- *)
 (*  LC relation                                                              *)
@@ -450,6 +137,7 @@ let LC_REL_CASES = prove
   [REWRITE_TAC[LC_REL] THEN MESON_TAC[DBLAMBDA_EQV_CASES];
    ASM_MESON_TAC[LC_REL_RULES]]);;
 
+(*
 let LC_REL_SHIFTI_IMP = prove
  (`!x y k n. x === y ==> SHIFTI k n x === SHIFTI k n y`,
   SUBGOAL_THEN `!x y. x === y ==> !k n. SHIFTI k n x === SHIFTI k n y`
@@ -465,26 +153,99 @@ let LC_REL_SUBSTI_FUN = prove
  (`!x f g. (!i. f i === g i) ==> SUBSTI f x === SUBSTI g x`,
   DBLAMBDA_INDUCT_TAC THEN ASM_SIMP_TAC[SUBSTI; LC_REL_APP] THEN
   ASM_MESON_TAC[LC_REL_ABS; LC_REL_SLIDEI]);;
+*)
 
-let LC_REL_SUBSTI_TERM = prove
- (`!x y f. x === y ==> SUBSTI f x === SUBSTI f y`,
-  SUBGOAL_THEN `!x y. x === y ==> !f. SUBSTI f x === SUBSTI f y`
-    (fun th -> MESON_TAC[th]) THEN
-  MATCH_MP_TAC LC_REL_INDUCT THEN REWRITE_TAC[SUBSTI] THEN
-  ASM_MESON_TAC[LC_REL_RULES; SUBSTI_BETA_TERM; SUBSTI_ETA_TERM]);;
+let LC_REL_REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i) ==> REINDEX f x === REINDEX g x`,
+  DBLAMBDA_INDUCT_TAC THEN REWRITE_TAC[REINDEX; FREES_INVERSION] THENL
+  [MESON_TAC[LC_REL_REFL];
+   ASM_MESON_TAC[LC_REL_APP];
+   REPEAT STRIP_TAC THEN MATCH_MP_TAC LC_REL_ABS THEN
+   FIRST_X_ASSUM MATCH_MP_TAC THEN NUM_CASES_TAC THEN
+   ASM_REWRITE_TAC[SLIDE; SUC_INJ]]);;
 
-let LC_REL_SUBSTI = prove
- (`!f g x y. (!n. f n === g n) /\ x === y ==> SUBSTI f x === SUBSTI g y`,
-  MESON_TAC[LC_REL_SUBSTI_TERM; LC_REL_SUBSTI_FUN; LC_REL_TRANS]);;
+(*
+let LC_REL_DERIV = prove
+ (`!f g i. DERIV f i === DERIV g i <=> i = 0 \/ f (PRE i) === g (PRE i)`,
+  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN REWRITE_TAC[DERIV; PRE] THEN
+  REWRITE_TAC[LC_REL_REFL; NOT_SUC]
+  REWRITE_TAC[NOT_SUC]
+*)
 
-let LC_REL_SHIFTI = prove
- (`!k n x y. SHIFTI k n x === SHIFTI k n y <=> x === y`,
-  MESON_TAC[LC_REL_SHIFTI_IMP; SHIFTI_LEFT_INV; LC_REL_SUBSTI_TERM]);;
+let LC_REL_REINDEX = prove
+ (`!x y f. x === y ==> REINDEX f x === REINDEX f y`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[LC_REL; DBLAMBDA_EQV] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RSTC_MAP THEN
+  ASM_REWRITE_TAC[] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_REL_REINDEX THEN
+  ASM_REWRITE_TAC[] THEN
+  MESON_TAC[DBLAMBDA_BETA_REINDEX; DBLAMBDA_ETA_REINDEX]);;
+
+let LC_REL_SUBST = prove
+ (`!x y f. x === y ==> SUBST f x === SUBST f y`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[LC_REL; DBLAMBDA_EQV] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RSTC_MAP THEN
+  ASM_REWRITE_TAC[] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_REL_SUBST THEN
+  ASM_REWRITE_TAC[] THEN
+  MESON_TAC[DBLAMBDA_BETA_SUBST; DBLAMBDA_ETA_SUBST]);;
+
+let LC_REL_REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i) ==> REINDEX f x === REINDEX g x`,
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[REINDEX; FREES_INVERSION; FORALL_UNWIND_THM2] THEN
+  ASM_SIMP_TAC[LC_REL_RULES] THEN REPEAT STRIP_TAC THEN
+  MATCH_MP_TAC LC_REL_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[SLIDE] THEN ASM_MESON_TAC[]);;
+
+let LC_REL_SUBST_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i === g i) ==> SUBST f x === SUBST g x`,
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[SUBST; FREES_INVERSION; FORALL_UNWIND_THM2] THEN
+  ASM_SIMP_TAC[LC_REL_APP] THEN REPEAT STRIP_TAC THEN
+  MATCH_MP_TAC LC_REL_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV; LC_REL_REFL] THEN
+  ASM_MESON_TAC[LC_REL_REINDEX]);;
+
+(* ------------------------------------------------------------------------- *)
+(* APP0.                                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+let APP0 = new_definition
+  `APP0 x = APP (REINDEX SUC x) (REF 0)`;;
+
+let APP_EQ_APP0 = prove
+ (`!x y. APP x y = SUBST (\n. if n = 0 then y else REF (PRE n)) (APP0 x)`,
+  GEN_TAC THEN GEN_TAC THEN MATCH_MP_TAC EQ_SYM THEN
+  REWRITE_TAC[APP0; SUBST; SUBST_REINDEX; SUBST_REF_EQ;
+              injectivity "dblambda"] THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[o_THM; PRE; NOT_SUC]);;
+
+let APP0_SUBST = prove
+ (`!f x. APP0 (SUBST f x) = SUBST (DERIV f) (APP0 x)`,
+  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[APP0; SUBST; DERIV] THEN
+  AP_THM_TAC THEN AP_TERM_TAC THEN
+  REWRITE_TAC[REINDEX_SUBST; SUBST_REINDEX; SUBST_EXTENS; o_THM] THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV]);;
+
+let DBLAMBDA_ETA_APP0 = prove
+ (`!x y. DBLAMBDA_ETA x y <=> x = ABS (APP0 y)`,
+  REWRITE_TAC[DBLAMBDA_ETA_CASES; APP0]);;
 
 let LC_REL_APP0 = prove
  (`!x y. x === y ==> APP0 x === APP0 y`,
   REPEAT STRIP_TAC THEN REWRITE_TAC[APP0] THEN
-  ASM_SIMP_TAC[LC_REL_RULES; LC_REL_SHIFTI; LC_REL_REFL]);;
+  ASM_SIMP_TAC[LC_REL_RULES; LC_REL_REINDEX]);;
+
+let dblambda_INDUCT_ALT = prove
+ (`!P. (!i. P (REF i)) /\
+       (!x. P x ==> P (APP0 x)) /\
+       (!x. P x ==> P (ABS x)) /\
+       (!f x. (!i. P (f i)) /\ P x ==> P (SUBST f x))
+       ==> (!x. P x)`,
+  GEN_TAC THEN STRIP_TAC THEN DBLAMBDA_INDUCT_TAC THEN ASM_SIMP_TAC[] THEN
+  REWRITE_TAC[APP_EQ_APP0] THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  ASM_SIMP_TAC[] THEN NUM_CASES_TAC THEN ASM_REWRITE_TAC[NOT_SUC]);;
 
 (* ------------------------------------------------------------------------- *)
 (*  A nice consequence of eta.                                               *)
@@ -500,252 +261,24 @@ let LC_REL_ABS_APP0 = prove
 
 let LC_REL_APP0_ABS = prove
  (`!x. APP0 (ABS x) === x`,
-  GEN_TAC THEN REWRITE_TAC[APP0; SHIFTI] THEN MATCH_MP_TAC LC_REL_BETA THEN
-  REWRITE_TAC[DBLAMBDA_BETA_THM; SHIFTI_EQ_SUBSTI; SUBSTI_ASSOC] THEN
-  MATCH_MP_TAC (GSYM SUBSTI_LUNIT_IMP) THEN NUM_CASES_TAC THEN
-  REWRITE_TAC[SUBSTI; IF_REF; o_THM; TRIVIAL_ARITH]);;
+  GEN_TAC THEN REWRITE_TAC[APP0; REINDEX] THEN MATCH_MP_TAC LC_REL_BETA THEN
+  REWRITE_TAC[DBLAMBDA_BETA_INVERSION] THEN MATCH_MP_TAC EQ_SYM THEN
+  REWRITE_TAC[SUBST_REINDEX] THEN REWRITE_TAC[SUBST_REF_EQ; o_THM] THEN
+  REWRITE_TAC[WEAKEN_SLIDE] THEN NUM_CASES_TAC THEN DISCH_TAC THEN
+  REWRITE_TAC[WEAKEN; o_THM]);;
 
 (* ------------------------------------------------------------------------- *)
 (*  How to express APP in terms of APP0 (modulo LC_REL).                     *)
 (* ------------------------------------------------------------------------- *)
 
 let LC_REL_APP_APP0 = prove
- (`!x y. APP x y === SUBSTI (\n. if n = 0 then y else REF (PRE n)) (APP0 x)`,
-  REPEAT GEN_TAC THEN MATCH_MP_TAC LC_REL_TRANS THEN
-  EXISTS_TAC `APP (ABS (APP (SHIFTI 0 (SUC 0) x) (REF 0))) y` THEN
-  REWRITE_TAC[APP0] THEN
-  MESON_TAC[LC_REL_RULES; DBLAMBDA_ETA_RULES; DBLAMBDA_BETA_RULES]);;
-
-let APP0_ABS_REL_RULES, APP0_ABS_REL_INDUCT, APP0_ABS_REL_CASES =
-  new_inductive_definition
-  `!x. APP0_ABS_REL (APP0 (ABS x)) x`;;
-
-let ABS_APP0_REL_RULES, ABS_APP0_REL_INDUCT, ABS_APP0_REL_CASES =
-  new_inductive_definition
-  `!x. ABS_APP0_REL (ABS (APP0 x)) x`;;
-
-(*
-prove
- (`!x y. DBLAMBDA_EQV (\x y. APP0_ABS_REL x y \/ ABS_APP0_REL x y) x y
-         ==> x === y`,
-  MATCH_MP_TAC DBLAMBDA_EQV_INDUCT THEN
-  REWRITE_TAC[APP0_ABS_REL_CASES; ABS_APP0_REL_CASES] THEN
-  MESON_TAC[LC_REL_RULES; LC_REL_ABS_APP0; LC_REL_APP0_ABS]);;
-*)
-
-(* ------------------------------------------------------------------------- *)
-(*  Alternative, equivalent, definition of the beta-eta relation.            *)
-(* ------------------------------------------------------------------------- *)
-
-let DBLAMBDA_ETA_INDUCT_ALT = prove
- (`!DBLAMBDA_ETA'. (!x. DBLAMBDA_ETA' (ABS (APP0 x)) x)
-                 ==> (!a0 a1. DBLAMBDA_ETA a0 a1 ==> DBLAMBDA_ETA' a0 a1)`,
-  SIMP_TAC[DBLAMBDA_ETA_CASES_ALT]);;
-
-let DBLAMBDA_REL0_RULES, DBLAMBDA_REL0_INDUCT, DBLAMBDA_REL0_CASES =
-  new_inductive_definition
-  `(!x y. R x y ==> DBLAMBDA_REL0 R x y) /\
-   (!x y. DBLAMBDA_REL0 R x y ==> DBLAMBDA_REL0 R (ABS x) (ABS y)) /\
-   (!x y. DBLAMBDA_REL0 R x y ==> DBLAMBDA_REL0 R (APP0 x) (APP0 y)) /\
-   (!f x y. DBLAMBDA_REL0 R x y
-            ==> DBLAMBDA_REL0 R (SUBSTI f x) (SUBSTI f y)) /\
-   (!f g x. (?n. DBLAMBDA_REL0 R (f n) (g n) /\ (!i. i = n \/  f i = g i))
-            ==> DBLAMBDA_REL0 R (SUBSTI f x) (SUBSTI g x))`;;
-
-let DBLAMBDA_REL0_SUBSTI_TERM = MESON[DBLAMBDA_REL0_RULES]
-  `!f x y. DBLAMBDA_REL0 R x y ==> DBLAMBDA_REL0 R (SUBSTI f x) (SUBSTI f y)`;;
-
-let DBLAMBDA_REL0_SUBSTI_FUN = MESON[DBLAMBDA_REL0_RULES]
-  `!f g x. (?n. DBLAMBDA_REL0 R (f n) (g n) /\ (!i. i = n \/  f i = g i))
-           ==> DBLAMBDA_REL0 R (SUBSTI f x) (SUBSTI g x)`;;
-
-let DBLAMBDA_REL0_SHIFTI = prove
- (`!R k n x y. DBLAMBDA_REL0 R x y
-               ==> DBLAMBDA_REL0 R (SHIFTI k n x) (SHIFTI k n y)`,
-  SIMP_TAC[SHIFTI_EQ_SUBSTI; DBLAMBDA_REL0_SUBSTI_TERM]);;
-
-let DBLAMBDA_REL0_APP_L = prove
- (`!R z x y. DBLAMBDA_REL0 R x y ==> DBLAMBDA_REL0 R (APP x z) (APP y z)`,
-  SIMP_TAC[APP_EQ_APP0; DBLAMBDA_REL0_RULES]);;
-
-let DBLAMBDA_REL0_APP_R = prove
- (`!R z x y. DBLAMBDA_REL0 R x y ==> DBLAMBDA_REL0 R (APP z x) (APP z y)`,
-  REPEAT STRIP_TAC THEN REWRITE_TAC[APP_EQ_APP0] THEN
-  MATCH_MP_TAC DBLAMBDA_REL0_SUBSTI_FUN THEN ASM_MESON_TAC[]);;
-
-let DBLAMBDA_EQV0 = new_definition
-  `!R. DBLAMBDA_EQV0 R = RSTC (DBLAMBDA_REL0 R)`;;
-
-let DBLAMBDA_EQV0_INDUCT = prove
- (`!E R. (!x y. R x y ==> E x y) /\
-         (!x y. E x y ==> E (APP0 x) (APP0 y)) /\
-         (!x y. E x y ==> E (ABS x) (ABS y)) /\
-         (!f x y. E x y ==> E (SUBSTI f x) (SUBSTI f y)) /\
-         (!f g x. (?n. E (f n) (g n) /\ (!i. i = n \/  f i = g i))
-                  ==> E (SUBSTI f x) (SUBSTI g x)) /\
-         (!x. E x x) /\
-         (!x y. E x y ==> E y x) /\
-         (!x y z. E x y /\ E y z ==> E x z)
-         ==> (!a0 a1. DBLAMBDA_EQV0 R a0 a1 ==> E a0 a1)`,
-  GEN_TAC THEN GEN_TAC THEN STRIP_TAC THEN
-  REWRITE_TAC[DBLAMBDA_EQV0] THEN MATCH_MP_TAC RSTC_INDUCT THEN
-  REPEAT CONJ_TAC THEN ASM_SIMP_TAC[] THENL
-  [MATCH_MP_TAC DBLAMBDA_REL0_INDUCT THEN ASM_SIMP_TAC[];
-   ASM_MESON_TAC[]]);;
-
-let DBLAMBDA_EQV0_INC = prove
- (`!R x y. R x y ==> DBLAMBDA_EQV0 R x y`,
-  SIMP_TAC[DBLAMBDA_EQV0; RSTC_INC; DBLAMBDA_REL0_RULES]);;
-
-let DBLAMBDA_EQV0_REFL = prove
- (`!R x. DBLAMBDA_EQV0 R x x`,
-  REWRITE_TAC[DBLAMBDA_EQV0; RSTC_REFL]);;
-
-let DBLAMBDA_EQV0_REFL_IMP = MESON[DBLAMBDA_EQV0_REFL]
-  `!R x y. x = y ==> DBLAMBDA_EQV0 R x y`;;
-
-let DBLAMBDA_EQV0_SYM = prove
- (`!R x y. DBLAMBDA_EQV0 R x y ==> DBLAMBDA_EQV0 R y x`,
-  REWRITE_TAC[DBLAMBDA_EQV0; RSTC_SYM]);;
-
-let DBLAMBDA_EQV0_TRANS = prove
- (`!R x y z. DBLAMBDA_EQV0 R x y /\ DBLAMBDA_EQV0 R y z
-             ==> DBLAMBDA_EQV0 R x z`,
-  REWRITE_TAC[DBLAMBDA_EQV0; RSTC_TRANS]);;
-
-let DBLAMBDA_EQV0_ABS = prove
- (`!R x y. DBLAMBDA_EQV0 R x y ==> DBLAMBDA_EQV0 R (ABS x) (ABS y)`,
-  GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV0] THEN MATCH_MP_TAC RSTC_INDUCT THEN
-  MESON_TAC[RSTC_RULES; DBLAMBDA_REL0_RULES]);;
-
-let DBLAMBDA_EQV0_APP0 = prove
- (`!R x y. DBLAMBDA_EQV0 R x y ==> DBLAMBDA_EQV0 R (APP0 x) (APP0 y)`,
-  GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV0] THEN MATCH_MP_TAC RSTC_INDUCT THEN
-  MESON_TAC[RSTC_RULES; DBLAMBDA_REL0_RULES]);;
-
-let DBLAMBDA_EQV0_SUBSTI_TERM = prove
- (`!R f x y. DBLAMBDA_EQV0 R x y
-             ==> DBLAMBDA_EQV0 R (SUBSTI f x) (SUBSTI f y)`,
-  GEN_TAC THEN
-  SUBGOAL_THEN `!x y. DBLAMBDA_EQV0 R x y
-                      ==> !f. DBLAMBDA_EQV0 R (SUBSTI f x) (SUBSTI f y)`
-    (fun th -> MESON_TAC[th]) THEN
-  REWRITE_TAC[DBLAMBDA_EQV0] THEN MATCH_MP_TAC RSTC_INDUCT THEN
-  MESON_TAC[RSTC_RULES; DBLAMBDA_REL0_RULES]);;
-
-let DBLAMBDA_EQV0_SHIFTI = prove
- (`!R k n x y. DBLAMBDA_EQV0 R x y
-               ==> DBLAMBDA_EQV0 R (SHIFTI n k x) (SHIFTI n k y)`,
-  GEN_TAC THEN GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV0] THEN
-  MATCH_MP_TAC RSTC_INDUCT THEN MESON_TAC[RSTC_RULES; DBLAMBDA_REL0_SHIFTI]);;
-
-let DBLAMBDA_EQV0_APP_L = prove
- (`!R z x y. DBLAMBDA_EQV0 R x y ==> DBLAMBDA_EQV0 R (APP x z) (APP y z)`,
-  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV0] THEN
-  MATCH_MP_TAC RSTC_INDUCT THEN
-  MESON_TAC[RSTC_RULES; DBLAMBDA_REL0_RULES; DBLAMBDA_REL0_APP_L]);;
-
-let DBLAMBDA_EQV0_APP_R = prove
- (`!R z x y. DBLAMBDA_EQV0 R x y ==> DBLAMBDA_EQV0 R (APP z x) (APP z y)`,
-  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV0] THEN
-  MATCH_MP_TAC RSTC_INDUCT THEN
-  MESON_TAC[RSTC_RULES; DBLAMBDA_REL0_RULES; DBLAMBDA_REL0_APP_R]);;
-
-let DBLAMBDA_EQV0_APP = prove
- (`!R x1 y1 x2 y2. DBLAMBDA_EQV0 R x1 y1 /\ DBLAMBDA_EQV0 R x2 y2
-                   ==> DBLAMBDA_EQV0 R (APP x1 x2) (APP y1 y2)`,
-  MESON_TAC[DBLAMBDA_EQV0_APP_L; DBLAMBDA_EQV0_APP_R; DBLAMBDA_EQV0_TRANS]);;
-
-let DBLAMBDA_EQV0_SUBSTI_FUN = prove
- (`!R x f g. (?n. DBLAMBDA_EQV0 R (f n) (g n) /\ (!i. i = n \/  f i = g i))
-             ==> DBLAMBDA_EQV0 R (SUBSTI f x) (SUBSTI g x)`,
-  GEN_TAC THEN DBLAMBDA_INDUCT_TAC THEN REPEAT STRIP_TAC THEN
-  REWRITE_TAC[SUBSTI] THENL
-  [ASM_MESON_TAC[DBLAMBDA_EQV0_REFL];
-   MATCH_MP_TAC DBLAMBDA_EQV0_APP THEN ASM_MESON_TAC[];
-   MATCH_MP_TAC DBLAMBDA_EQV0_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
-   EXISTS_TAC `SUC n` THEN CONJ_TAC THENL
-   [ASM_SIMP_TAC[SLIDEI; DBLAMBDA_EQV0_SHIFTI; TRIVIAL_ARITH];
-    NUM_CASES_TAC THEN REWRITE_TAC[SLIDEI; TRIVIAL_ARITH; SHIFTI_INJ] THEN
-    ASM_MESON_TAC[]]]);;
-
-let DBLAMBDA_EQV0_RULES =
-  MESON[DBLAMBDA_EQV0_INC; DBLAMBDA_EQV0_APP0; DBLAMBDA_EQV0_ABS;
-    DBLAMBDA_EQV0_SUBSTI_TERM; DBLAMBDA_EQV0_SUBSTI_FUN; DBLAMBDA_EQV0_REFL;
-    DBLAMBDA_EQV0_SYM; DBLAMBDA_EQV0_TRANS]
-  `!R. (!x y. R x y ==> DBLAMBDA_EQV0 R x y) /\
-       (!x y. DBLAMBDA_EQV0 R x y ==> DBLAMBDA_EQV0 R (ABS x) (ABS y)) /\
-       (!x y. DBLAMBDA_EQV0 R x y ==> DBLAMBDA_EQV0 R (APP0 x) (APP0 y)) /\
-       (!f x y. DBLAMBDA_EQV0 R x y
-                ==> DBLAMBDA_EQV0 R (SUBSTI f x) (SUBSTI f y)) /\
-       (!f g x. (?n. DBLAMBDA_EQV0 R (f n) (g n) /\ (!i. i = n \/  f i = g i))
-                ==> DBLAMBDA_EQV0 R (SUBSTI f x) (SUBSTI g x)) /\
-       (!x. DBLAMBDA_EQV0 R x x) /\
-       (!x y. DBLAMBDA_EQV0 R x y ==> DBLAMBDA_EQV0 R y x) /\
-       (!x y z. DBLAMBDA_EQV0 R x y /\ DBLAMBDA_EQV0 R y z
-                ==> DBLAMBDA_EQV0 R x z)`;;
-
-let DBLAMBDA_EQV0_CASES = prove
- (`!a0 a1.
-     DBLAMBDA_EQV0 R a0 a1 <=>
-     R a0 a1 \/
-     (?x y. a0 = APP0 x /\ a1 = APP0 y /\ DBLAMBDA_EQV0 R x y) \/
-     (?x y. a0 = ABS x /\ a1 = ABS y /\ DBLAMBDA_EQV0 R x y) \/
-     (?f x y. a0 = SUBSTI f x /\ a1 = SUBSTI f y /\ DBLAMBDA_EQV0 R x y) \/
-     (?f g x n. a0 = SUBSTI f x /\ a1 = SUBSTI g x /\
-                DBLAMBDA_EQV0 R (f n) (g n) /\
-                (!i. n = i \/ f i = g i)) \/
-     DBLAMBDA_EQV0 R a1 a0 \/
-     (?y. DBLAMBDA_EQV0 R a0 y /\ DBLAMBDA_EQV0 R y a1)`,
-  REPEAT GEN_TAC THEN EQ_TAC THENL
-  [REWRITE_TAC[DBLAMBDA_EQV0] THEN MESON_TAC[RSTC_CASES; RSTC_RULES];
-   MESON_TAC[DBLAMBDA_EQV0_RULES]]);;
-
-let BETA_IMP_APP0_ABS_REL = prove
- (`!x y. DBLAMBDA_BETA x y ==> DBLAMBDA_EQV0 APP0_ABS_REL x y`,
-  MATCH_MP_TAC DBLAMBDA_BETA_INDUCT THEN
-  SIMP_TAC[APP_EQ_APP0; DBLAMBDA_EQV0_SUBSTI_TERM; DBLAMBDA_EQV0_INC;
-           APP0_ABS_REL_CASES]);;
-
-let ETA_IMP_ABS_APP0_REL = prove
-  (`!x y. DBLAMBDA_ETA x y ==> DBLAMBDA_EQV0 ABS_APP0_REL x y`,
-   MATCH_MP_TAC DBLAMBDA_ETA_INDUCT_ALT THEN
-   SIMP_TAC[DBLAMBDA_EQV0_INC; ABS_APP0_REL_CASES]);;
-
-let LC_REL_IMP_APP0_ABS_OR_ABS_APP0 = prove
- (`!x y. x === y
-         ==> DBLAMBDA_EQV0 (\x y. APP0_ABS_REL x y \/ ABS_APP0_REL x y) x y`,
-  MATCH_MP_TAC LC_REL_INDUCT THEN REPEAT CONJ_TAC THEN
-  SIMP_TAC[DBLAMBDA_EQV0_APP; DBLAMBDA_EQV0_ABS; DBLAMBDA_EQV0_SYM] THENL
-  [MATCH_MP_TAC DBLAMBDA_BETA_INDUCT THEN
-   SIMP_TAC[APP_EQ_APP0; DBLAMBDA_EQV0_SUBSTI_TERM; DBLAMBDA_EQV0_INC;
-            APP0_ABS_REL_CASES];
-   MATCH_MP_TAC DBLAMBDA_ETA_INDUCT_ALT THEN
-   SIMP_TAC[DBLAMBDA_EQV0_INC; ABS_APP0_REL_CASES];
-   MESON_TAC[DBLAMBDA_EQV0_TRANS]]);;
-
-let APP0_ABS_IMP_LC_REL = prove
- (`!x y. APP0_ABS_REL x y ==> x === y`,
-  MATCH_MP_TAC APP0_ABS_REL_INDUCT THEN REWRITE_TAC[LC_REL_APP0_ABS]);;
-
-let ABS_APP0_IMP_LC_REL = prove
- (`!x y. ABS_APP0_REL x y ==> x === y`,
-  MATCH_MP_TAC ABS_APP0_REL_INDUCT THEN REWRITE_TAC[LC_REL_ABS_APP0]);;
-
-let APP0_ABS_OR_ABS_APP0_IMP_LC_REL = prove
- (`!x y. DBLAMBDA_EQV0 (\x y. APP0_ABS_REL x y \/ ABS_APP0_REL x y) x y
-         ==> x === y`,
-  REWRITE_TAC[DBLAMBDA_EQV0] THEN MATCH_MP_TAC RSTC_INDUCT THEN
-  SIMP_TAC[LC_REL_REFL; LC_REL_SYM] THEN CONJ_TAC THENL
-  [MATCH_MP_TAC DBLAMBDA_REL0_INDUCT THEN
-   SIMP_TAC[LC_REL_APP0; LC_REL_ABS; LC_REL_SUBSTI_TERM] THEN
-   CONJ_TAC THENL
-   [MESON_TAC[APP0_ABS_IMP_LC_REL; ABS_APP0_IMP_LC_REL];
-    REPEAT STRIP_TAC THEN MATCH_MP_TAC LC_REL_SUBSTI_FUN THEN
-    ASM_MESON_TAC[LC_REL_REFL]];
-   MESON_TAC[LC_REL_TRANS]]);;
-
-let LC_REL_ALT =
-  MESON[APP0_ABS_OR_ABS_APP0_IMP_LC_REL; LC_REL_IMP_APP0_ABS_OR_ABS_APP0]
-  `!x y. x === y <=>
-         DBLAMBDA_EQV0 (\x y. APP0_ABS_REL x y \/ ABS_APP0_REL x y) x y`;;
+ (`!x y. APP x y === SUBST1 y (APP0 x)`,
+  REPEAT GEN_TAC THEN
+  TRANS_TAC LC_REL_TRANS `APP (ABS (APP (REINDEX SUC x) (REF 0))) y` THEN
+  CONJ_TAC THENL [MESON_TAC[LC_REL_RULES; DBLAMBDA_ETA_RULES]; ALL_TAC] THEN
+  REWRITE_TAC[APP0; SUBST1_EQ_SUBST; SUBST; WEAKEN; SUBST_REINDEX] THEN
+  MATCH_MP_TAC LC_REL_APP THEN REWRITE_TAC[LC_REL_REFL] THEN
+  MATCH_MP_TAC LC_REL_ETA THEN
+  REWRITE_TAC[DBLAMBDA_ETA_CASES; injectivity "dblambda"] THEN
+  SIMP_TAC[REINDEX_INJ; SUC_INJ] THEN MATCH_MP_TAC EQ_SYM THEN
+  REWRITE_TAC[SUBST_REF_EQ; o_THM; WEAKEN]);;

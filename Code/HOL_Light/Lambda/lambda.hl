@@ -41,12 +41,12 @@ let LC_LIFT_PROJ = prove
  (`!x. LC_LIFT (LC_PROJ x) === x`,
   REWRITE_TAC[LC_LIFT; LC_PROJ_REL] THEN MESON_TAC[SELECT_AX; LC_REL_REFL]);;
 
-let LC_THM_LIFT = prove
+let FORALL_LC_THM = prove
  (`!P. (!x. P x) <=> (!x. P (LC_PROJ x))`,
   MESON_TAC[LC_PROJ_SURJ]);;
 
-let LC_THM_FUN_LIFT = prove
- (`!P. (!f. P f) <=> (!f:num->dblambda. P (LC_PROJ o f))`,
+let FORALL_LC_FUN_THM = prove
+ (`!P. (!f:num->lc. P f) <=> (!f. P (LC_PROJ o f))`,
   SUBGOAL_THEN `!f:num->lc. f = LC_PROJ o (LC_LIFT o f)`
     (fun th -> MESON_TAC[th]) THEN
   REWRITE_TAC[o_THM; LC_PROJ_LIFT; FUN_EQ_THM]);;
@@ -65,69 +65,79 @@ let LC_REF = prove
  (`!i. LC_REF i = LC_PROJ (REF i)`,
   REWRITE_TAC[LC_REF_DEF; o_THM]);;
 
-let LC_SHIFTI_DEF = new_definition
-  `!k n x. LC_SHIFTI k n x = LC_PROJ (SHIFTI k n (LC_LIFT x))`;;
+let LC_REINDEX_DEF = new_definition
+  `!f x. LC_REINDEX f x = LC_PROJ (REINDEX f (LC_LIFT x))`;;
 
-let LC_SHIFTI = prove
- (`!k n x. LC_SHIFTI k n (LC_PROJ x) = LC_PROJ (SHIFTI k n x)`,
-  REWRITE_TAC[LC_SHIFTI_DEF; LC_PROJ_REL; LC_REL_SHIFTI; LC_LIFT_PROJ]);;
+let LC_REINDEX = prove
+ (`!f x. LC_REINDEX f (LC_PROJ x) = LC_PROJ (REINDEX f x)`,
+  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[LC_REINDEX_DEF; LC_PROJ_REL] THEN
+  MATCH_MP_TAC LC_REL_REINDEX THEN REWRITE_TAC[LC_LIFT_PROJ]);;
 
-let LC_SLIDEI_DEF = new_definition
-  `!k f i. LC_SLIDEI k f i = LC_PROJ (SLIDEI k (LC_LIFT o f) i)`;;
+let LC_DERIV_DEF = new_definition
+  `!f i. LC_DERIV f i = LC_PROJ (DERIV (LC_LIFT o f) i)`;;
 
-let LC_SLIDEI = prove
- (`!f i k. LC_SLIDEI k f i =
-           if i < k then LC_REF i else LC_SHIFTI 0 k (f (i - k))`,
- REPEAT GEN_TAC THEN REWRITE_TAC[LC_SLIDEI_DEF; LC_SHIFTI; SLIDEI; o_THM] THEN
- SPEC_TAC (`f (i - k):lc`,`x:lc`) THEN REWRITE_TAC[LC_THM_LIFT] THEN
- GEN_TAC THEN COND_CASES_TAC THEN REWRITE_TAC[LC_REF; LC_SHIFTI] THEN
- REWRITE_TAC[LC_PROJ_REL; LC_REL_SHIFTI; LC_LIFT_PROJ]);;
+let LC_DERIV = prove
+ (`(!f. LC_DERIV f 0 = LC_REF 0) /\
+   (!f i. LC_DERIV f (SUC i) = LC_REINDEX SUC (f i))`,
+  CONJ_TAC THEN
+  REWRITE_TAC[FORALL_LC_FUN_THM; LC_DERIV_DEF; DERIV; LC_REF] THEN
+  REPEAT GEN_TAC THEN REWRITE_TAC[LC_REINDEX; o_THM; LC_PROJ_REL] THEN
+  MATCH_MP_TAC LC_REL_REINDEX THEN REWRITE_TAC[LC_LIFT_PROJ]);;
 
+(*
 let LC_SLIDEI_PROJ_o = prove
- (`!f k. LC_SLIDEI k (LC_PROJ o f) = LC_PROJ o SLIDEI k f`,
-  REWRITE_TAC[LC_THM_FUN_LIFT; FUN_EQ_THM; LC_SLIDEI; LC_REF; LC_SHIFTI;
+ (`!f. LC_SLIDE (LC_PROJ o f) = LC_PROJ o SLIDEI k f`,
+  REWRITE_TAC[FORALL_LC_FUN_THM; FUN_EQ_THM; LC_SLIDEI; LC_REF; LC_SHIFTI;
               SLIDEI; o_THM; IF_DISTRIB]);;
+*)
 
-let LC_SUBSTI_DEF = new_definition
-  `LC_SUBSTI f x = LC_PROJ (SUBSTI (LC_LIFT o f) (LC_LIFT x))`;;
+let LC_SUBST_DEF = new_definition
+  `LC_SUBST f x = LC_PROJ (SUBST (LC_LIFT o f) (LC_LIFT x))`;;
 
-let LC_SUBSTI_FUN_EXTENS = prove
- (`!f g x. (!n. f n = g n) ==> LC_SUBSTI f x = LC_SUBSTI g x`,
+let LC_SUBST_FUN_EXTENS = prove
+ (`!f g x. (!n. f n = g n) ==> LC_SUBST f x = LC_SUBST g x`,
   REWRITE_TAC[GSYM FUN_EQ_THM] THEN MESON_TAC[]);;
 
-let LC_SUBSTI_PROJ = prove
- (`!f x. LC_SUBSTI (LC_PROJ o f) (LC_PROJ x) = LC_PROJ (SUBSTI f x)`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[LC_SUBSTI_DEF; o_DEF; LC_PROJ_REL] THEN
-  MESON_TAC[LC_REL_SUBSTI; LC_LIFT_PROJ]);;
+let LC_SUBST_PROJ = prove
+ (`!f x. LC_SUBST (LC_PROJ o f) (LC_PROJ x) = LC_PROJ (SUBST f x)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[LC_SUBST_DEF; LC_PROJ_REL] THEN
+  TRANS_TAC LC_REL_TRANS `SUBST f (LC_LIFT (LC_PROJ x))` THEN
+  SIMP_TAC[LC_REL_SUBST; LC_REL_SUBST_EXTENS; LC_LIFT_PROJ; o_THM]);;
 
-let LC_SUBSTI = prove
- (`(!f i. LC_SUBSTI f (LC_REF i) = f i) /\
-   (!f x y. LC_SUBSTI f (LC_APP x y) =
-            LC_APP (LC_SUBSTI f x) (LC_SUBSTI f y)) /\
-   (!f x. LC_SUBSTI f (LC_ABS x) =
-          LC_ABS (LC_SUBSTI (LC_SLIDEI (SUC 0) f) x))`,
-  REWRITE_TAC[LC_THM_FUN_LIFT; LC_THM_LIFT; LC_REF; LC_APP; LC_ABS;
-              LC_SUBSTI_PROJ; LC_SLIDEI_PROJ_o; SUBSTI; o_THM]);;
+let LC_SUBST = prove
+ (`(!f i. LC_SUBST f (LC_REF i) = f i) /\
+   (!f x y. LC_SUBST f (LC_APP x y) =
+            LC_APP (LC_SUBST f x) (LC_SUBST f y)) /\
+   (!f x. LC_SUBST f (LC_ABS x) =
+          LC_ABS (LC_SUBST (LC_DERIV f) x))`,
+  REWRITE_TAC[FORALL_LC_FUN_THM; FORALL_LC_THM] THEN REPEAT STRIP_TAC THEN
+  REWRITE_TAC[LC_REF; LC_APP; LC_ABS; LC_SUBST_PROJ; SUBST; o_THM] THEN
+  SUBGOAL_THEN `!f. LC_DERIV (LC_PROJ o f) = LC_PROJ o DERIV f`
+    (fun th -> REWRITE_TAC[th]) THENL
+  [REWRITE_TAC[FORALL_LC_FUN_THM; FUN_EQ_THM] THEN GEN_TAC THEN
+   NUM_CASES_TAC THEN REWRITE_TAC[LC_DERIV; DERIV; o_THM; LC_REF; LC_REINDEX];
+   REWRITE_TAC[LC_SUBST_PROJ; LC_ABS]]);;
 
 let LC_APP0_DEF, LC_APP0 = lc_lift_function "LC_APP0" LC_REL_APP0;;
 
 (* ------------------------------------------------------------------------- *)
-(*  Operadic properties of LC_SUBSTI.                                        *)
+(*  Operadic properties of LC_SUBST.                                        *)
 (* ------------------------------------------------------------------------- *)
 
-let LC_SUBSTI_LUNIT = prove
- (`!x. LC_SUBSTI LC_REF x = x`,
-  REWRITE_TAC[LC_THM_LIFT; LC_REF_DEF; LC_SUBSTI_PROJ; SUBSTI_LUNIT]);;
+let LC_SUBST_LUNIT = prove
+ (`!x. LC_SUBST LC_REF x = x`,
+  REWRITE_TAC[FORALL_LC_THM; LC_REF_DEF; LC_SUBST_PROJ; SUBST_REF]);;
 
-let LC_SUBSTI_RUNIT = prove
- (`!f i. LC_SUBSTI f (LC_REF i) = f i`,
-  REWRITE_TAC[LC_THM_FUN_LIFT; LC_REF; LC_SUBSTI_PROJ; SUBSTI; o_THM]);;
+let LC_SUBST_RUNIT = prove
+ (`!f i. LC_SUBST f (LC_REF i) = f i`,
+  REWRITE_TAC[FORALL_LC_FUN_THM; LC_REF; LC_SUBST_PROJ; SUBST; o_THM]);;
 
-let LC_SUBSTI_ASSOC = prove
- (`!f g x. LC_SUBSTI f (LC_SUBSTI g x) = LC_SUBSTI (LC_SUBSTI f o g) x`,
-  REWRITE_TAC[LC_THM_FUN_LIFT; LC_THM_LIFT; LC_SUBSTI_PROJ; SUBSTI_ASSOC] THEN
-  REPEAT GEN_TAC THEN REWRITE_TAC[GSYM LC_SUBSTI_PROJ] THEN AP_THM_TAC THEN
-  AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; LC_SUBSTI_PROJ]);;
+let LC_SUBST_SUBST = prove
+ (`!f g x. LC_SUBST f (LC_SUBST g x) = LC_SUBST (LC_SUBST f o g) x`,
+  REWRITE_TAC[FORALL_LC_FUN_THM; FORALL_LC_THM] THEN REPEAT GEN_TAC THEN
+  REWRITE_TAC[LC_SUBST_PROJ; SUBST_SUBST] THEN
+  REWRITE_TAC[GSYM LC_SUBST_PROJ] THEN AP_THM_TAC THEN
+  AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; LC_SUBST_PROJ]);;
 
 (* ------------------------------------------------------------------------- *)
 (*  APP0 and ABS are inverse each other.                                     *)
@@ -135,11 +145,11 @@ let LC_SUBSTI_ASSOC = prove
 
 let LC_ABS_APP0 = prove
  (`!x. LC_ABS (LC_APP0 x) = x`,
-  REWRITE_TAC[LC_THM_LIFT; LC_APP0; LC_ABS; LC_PROJ_REL; LC_REL_ABS_APP0]);;
+  REWRITE_TAC[FORALL_LC_THM; LC_APP0; LC_ABS; LC_PROJ_REL; LC_REL_ABS_APP0]);;
 
 let LC_APP0_ABS = prove
  (`!x. LC_APP0 (LC_ABS x) = x`,
-  REWRITE_TAC[LC_THM_LIFT; LC_APP0; LC_ABS; LC_PROJ_REL; LC_REL_APP0_ABS]);;
+  REWRITE_TAC[FORALL_LC_THM; LC_APP0; LC_ABS; LC_PROJ_REL; LC_REL_APP0_ABS]);;
 
 (* ------------------------------------------------------------------------- *)
 (*  How to express LC_APP in terms of LC_APP0.                               *)
@@ -147,10 +157,11 @@ let LC_APP0_ABS = prove
 
 let LC_APP_APP0 = prove
  (`!x y. LC_APP x y =
-         LC_SUBSTI (\n. if n = 0 then y else LC_REF (PRE n)) (LC_APP0 x)`,
-  REWRITE_TAC[LC_THM_LIFT] THEN REPEAT GEN_TAC THEN
-  REWRITE_TAC[LC_APP; LC_REF; LC_APP0; IF_DISTRIB;
-              GSYM o_DEF; LC_SUBSTI_PROJ; SUBSTI_APP0] THEN
-  REPEAT GEN_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[injectivity "dblambda"] THEN
-  MATCH_MP_TAC (GSYM SUBSTI_LUNIT_IMP) THEN
-  REWRITE_TAC[PRE; o_THM; NOT_SUC]);;
+         LC_SUBST (\n. if n = 0 then y else LC_REF (PRE n)) (LC_APP0 x)`,
+  REWRITE_TAC[FORALL_LC_THM] THEN REPEAT GEN_TAC THEN
+  REWRITE_TAC[LC_APP; LC_REF; LC_APP0; IF_DISTRIB] THEN
+  GEN_REWRITE_TAC (RAND_CONV o LAND_CONV) [GSYM o_DEF] THEN
+  REWRITE_TAC[LC_SUBST_PROJ; APP0; SUBST; SUBST_REINDEX] THEN
+  AP_TERM_TAC THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+  MATCH_MP_TAC EQ_SYM THEN
+  REWRITE_TAC[SUBST_REF_EQ; o_THM; NOT_SUC; PRE]);;

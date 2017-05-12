@@ -141,10 +141,6 @@ let REINDEX_INJ = prove
 (* Derivation.                                                               *)
 (* ------------------------------------------------------------------------- *)
 
-let WEAKEN = new_recursive_definition num_RECURSION
-  `(!u:A f. WEAKEN u f 0 = u) /\
-   (!u f i. WEAKEN u f (SUC i) = f i)`;;
-
 let DERIV = new_recursive_definition num_RECURSION
   `(!f. DERIV f 0 = REF 0) /\
    (!f i. DERIV f (SUC i) = REINDEX SUC (f i))`;;
@@ -164,7 +160,7 @@ let DERIV_SLIDE = prove
   REWRITE_TAC[SLIDE; DERIV; o_THM]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Subst.                                                                    *)
+(* Parallel substitution (higher-order style).                               *)
 (* ------------------------------------------------------------------------- *)
 
 let SUBST = new_recursive_definition dblambda_RECURSION
@@ -218,6 +214,15 @@ let SUBST_SUBST = prove
   DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
   ASM_REWRITE_TAC[SUBST; o_THM; injectivity "dblambda"] THEN
   REWRITE_TAC[SUBST_EXTENS; o_THM; SUBST_DERIV]);;
+
+let REINDEX_EQ_SUBST = prove
+ (`!f. REINDEX f = SUBST (REF o f)`,
+  SUBGOAL_THEN `!x f. REINDEX f x = SUBST (REF o f) x`
+    (fun th -> REWRITE_TAC[th; FUN_EQ_THM]) THEN
+  DBLAMBDA_INDUCT_TAC THEN GEN_TAC THEN
+  ASM_REWRITE_TAC[REINDEX; SUBST; o_THM; injectivity "dblambda"] THEN
+  REWRITE_TAC[SUBST_EXTENS] THEN NUM_CASES_TAC THEN DISCH_TAC THEN
+  REWRITE_TAC[o_THM; DERIV; SLIDE; REINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Classical definition of linear substitution.                              *)
@@ -282,23 +287,169 @@ let SUBSTI1_EQ_SUBST = prove
   COND_CASES_TAC THEN REWRITE_TAC[REINDEX; injectivity "dblambda"] THEN
   ASM_ARITH_TAC);;
 
-let SUBST1_EQ_SUBST = prove
- (`!t u. SUBST1 u t = SUBST (\i. if i = 0 then u else REF (i - 1)) t`,
-  REWRITE_TAC[SUBST1; SUBSTI1_EQ_SUBST; ITER]);;
+let WEAKEN = new_recursive_definition num_RECURSION
+  `(!u:A f. WEAKEN u f 0 = u) /\
+   (!u f i. WEAKEN u f (SUC i) = f i)`;;
+
+let WEAKEN_SLIDE = prove
+ (`!f g u:A i. WEAKEN u f (SLIDE g i) = WEAKEN u (f o g) i`,
+  GEN_TAC THEN GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
+  REWRITE_TAC[WEAKEN; SLIDE; o_THM]);;
 
 let SUBST1_EQ_SUBST = prove
  (`!t u. SUBST1 u t = SUBST (WEAKEN u REF) t`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[SUBST1_EQ_SUBST; SUBST_EXTENS] THEN
-  INDUCT_TAC THEN DISCH_TAC THEN
-  REWRITE_TAC[WEAKEN; NOT_SUC; REINDEX; o_THM] THEN
-  AP_TERM_TAC THEN ARITH_TAC);;
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[SUBST1; SUBSTI1_EQ_SUBST; ITER_BINARY; SUBST_EXTENS] THEN
+  NUM_CASES_TAC THEN DISCH_TAC THEN REWRITE_TAC[WEAKEN] THEN
+  REWRITE_TAC[NOT_SUC; injectivity "dblambda"] THEN ARITH_TAC);;
 
 let SUBST1_SUBST1 = prove
  (`!t u w. SUBST1 w (SUBST1 u t) = SUBST1 (SUBST1 w u) (SUBSTI1 1 w t)`,
   REPEAT GEN_TAC THEN
-  REWRITE_TAC[SUBST1; SUBSTI1_EQ_SUBST; SUBST_SUBST; SUBST_EXTENS;
+  REWRITE_TAC[SUBST1_EQ_SUBST; SUBSTI1_EQ_SUBST; SUBST_SUBST; SUBST_EXTENS;
               ITER_BINARY; o_THM] THEN
-  NUM_CASES_TAC THEN DISCH_TAC THEN REWRITE_TAC[DERIV; SUBST; NOT_SUC] THEN
-  MATCH_MP_TAC EQ_SYM THEN
-  REWRITE_TAC[SUBST_REINDEX; SUBST_REF_EQ; o_THM; NOT_SUC;
-              ARITH_RULE `SUC i - 1 = i`]);;
+  NUM_CASES_TAC THEN DISCH_TAC THEN REWRITE_TAC[WEAKEN; DERIV; SUBST; REINDEX] THEN
+  REWRITE_TAC[SUBST_REINDEX] THEN MATCH_MP_TAC EQ_SYM THEN
+  STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
+  REWRITE_TAC[WEAKEN; SUBST; NOT_SUC; SUBST_REF_EQ; o_THM;
+              injectivity "dblambda"] THEN
+  ARITH_TAC);;
+
+(* ------------------------------------------------------------------------- *)
+(* Structural relation relation between lambda terms.                        *)
+(* ------------------------------------------------------------------------- *)
+
+let DBLAMBDA_REL_RULES, DBLAMBDA_REL_INDUCT, DBLAMBDA_REL_CASES =
+  new_inductive_definition
+  `(!x y. R x y ==> DBLAMBDA_REL R x y) /\
+   (!x y. DBLAMBDA_REL R x y ==> DBLAMBDA_REL R (ABS x) (ABS y)) /\
+   (!x y z. DBLAMBDA_REL R x y ==> DBLAMBDA_REL R (APP x z) (APP y z)) /\
+   (!x y z. DBLAMBDA_REL R x y ==> DBLAMBDA_REL R (APP z x) (APP z y))`;;
+
+let [DBLAMBDA_REL_INC; DBLAMBDA_REL_ABS; DBLAMBDA_REL_RATOR; DBLAMBDA_REL_RAND] =
+  CONJUNCTS (REWRITE_RULE[FORALL_AND_THM] DBLAMBDA_REL_RULES);;
+
+let DBLAMBDA_REL_REINDEX = prove
+ (`!R x y f. (!u v g. R u v ==> R (REINDEX g u) (REINDEX g v)) /\
+             DBLAMBDA_REL R x y
+             ==> DBLAMBDA_REL R (REINDEX f x) (REINDEX f y)`,
+  REPEAT STRIP_TAC THEN
+  SUBGOAL_THEN
+    `!x y. DBLAMBDA_REL R x y
+           ==> !f. DBLAMBDA_REL R (REINDEX f x) (REINDEX f y)`
+    (fun th -> ASM_MESON_TAC[th]) THEN
+  MATCH_MP_TAC DBLAMBDA_REL_INDUCT THEN REWRITE_TAC[REINDEX] THEN
+  ASM_SIMP_TAC[DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_REL_SUBST = prove
+ (`!R x y f. (!u v g. R u v ==> R (SUBST g u) (SUBST g v)) /\
+             DBLAMBDA_REL R x y
+             ==> DBLAMBDA_REL R (SUBST f x) (SUBST f y)`,
+  REPEAT STRIP_TAC THEN
+  SUBGOAL_THEN
+    `!x y. DBLAMBDA_REL R x y
+           ==> !f. DBLAMBDA_REL R (SUBST f x) (SUBST f y)`
+    (fun th -> ASM_MESON_TAC[th]) THEN
+    MATCH_MP_TAC DBLAMBDA_REL_INDUCT THEN REWRITE_TAC[SUBST] THEN
+  ASM_SIMP_TAC[DBLAMBDA_REL_RULES]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Structural equivalence relation between lambda terms.                     *)
+(* ------------------------------------------------------------------------- *)
+
+let DBLAMBDA_EQV = new_definition
+  `!R. DBLAMBDA_EQV R = RSTC (DBLAMBDA_REL R)`;;
+
+let DBLAMBDA_EQV_INC = prove
+ (`!R x y. R x y ==> DBLAMBDA_EQV R x y`,
+  SIMP_TAC[DBLAMBDA_EQV; RSTC_INC; DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_EQV_REFL = prove
+ (`!R x. DBLAMBDA_EQV R x x`,
+  REWRITE_TAC[DBLAMBDA_EQV; RSTC_REFL]);;
+
+let DBLAMBDA_EQV_REFL_IMP = MESON[DBLAMBDA_EQV_REFL]
+  `!R x y. x = y ==> DBLAMBDA_EQV R x y`;;
+
+let DBLAMBDA_EQV_SYM = prove
+ (`!R x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R y x`,
+  REWRITE_TAC[DBLAMBDA_EQV; RSTC_SYM]);;
+
+let DBLAMBDA_EQV_TRANS = prove
+ (`!R x y z. DBLAMBDA_EQV R x y /\ DBLAMBDA_EQV R y z ==> DBLAMBDA_EQV R x z`,
+  REWRITE_TAC[DBLAMBDA_EQV; RSTC_TRANS]);;
+
+let DBLAMBDA_EQV_ABS = prove
+ (`!R x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R (ABS x) (ABS y)`,
+  GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN MATCH_MP_TAC RSTC_INDUCT THEN
+  MESON_TAC[RSTC_RULES; DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_EQV_APP_L = prove
+ (`!R z x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R (APP x z) (APP y z)`,
+  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN
+  MATCH_MP_TAC RSTC_INDUCT THEN MESON_TAC[RSTC_RULES; DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_EQV_APP_R = prove
+ (`!R z x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R (APP z x) (APP z y)`,
+  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN
+  MATCH_MP_TAC RSTC_INDUCT THEN MESON_TAC[RSTC_RULES; DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_EQV_APP =
+  MESON[DBLAMBDA_EQV_TRANS; DBLAMBDA_EQV_APP_L; DBLAMBDA_EQV_APP_R]
+  `!R x1 x2 y1 y2. DBLAMBDA_EQV R x1 y1 /\ DBLAMBDA_EQV R x2 y2
+                   ==> DBLAMBDA_EQV R (APP x1 x2) (APP y1 y2)`;;
+
+let DBLAMBDA_EQV_RULES =
+  MESON[DBLAMBDA_EQV_INC; DBLAMBDA_EQV_APP; DBLAMBDA_EQV_ABS;
+        DBLAMBDA_EQV_REFL; DBLAMBDA_EQV_SYM; DBLAMBDA_EQV_TRANS]
+  `!R. (!x y. R x y ==> DBLAMBDA_EQV R x y) /\
+       (!x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R (ABS x) (ABS y)) /\
+       (!x1 x2 y1 y2. DBLAMBDA_EQV R x1 y1 /\ DBLAMBDA_EQV R x2 y2
+                      ==> DBLAMBDA_EQV R (APP x1 x2) (APP y1 y2)) /\
+       (!x. DBLAMBDA_EQV R x x) /\
+       (!x y. DBLAMBDA_EQV R x y ==> DBLAMBDA_EQV R y x) /\
+       (!x y z. DBLAMBDA_EQV R x y /\ DBLAMBDA_EQV R y z
+                ==> DBLAMBDA_EQV R x z)`;;
+
+let DBLAMBDA_EQV_CASES = prove
+ (`!a0 a1.
+      DBLAMBDA_EQV R a0 a1 <=>
+      R a0 a1 \/
+      (?x1 y1 x2 y2.
+         a0 = APP x1 x2 /\ a1 = APP y1 y2 /\
+         DBLAMBDA_EQV R x1 y1 /\ DBLAMBDA_EQV R x2 y2) \/
+      (?x y. a0 = ABS x /\ a1 = ABS y /\ DBLAMBDA_EQV R x y) \/
+      DBLAMBDA_EQV R a1 a0 \/
+      (?y. DBLAMBDA_EQV R a0 y /\ DBLAMBDA_EQV R y a1)`,
+  REPEAT GEN_TAC THEN EQ_TAC THENL
+  [REWRITE_TAC[DBLAMBDA_EQV] THEN MESON_TAC[RSTC_CASES; RSTC_RULES];
+   MESON_TAC[DBLAMBDA_EQV_RULES]]);;
+
+let DBLAMBDA_EQV_INDUCT = prove
+ (`!RR R. (!x y. R x y ==> RR x y) /\
+          (!x1 y1 x2 y2.
+             RR x1 y1 /\ RR x2 y2 ==> RR (APP x1 x2) (APP y1 y2)) /\
+          (!x y. RR x y ==> RR (ABS x) (ABS y)) /\
+          (!x. RR x x) /\
+          (!x y. RR x y ==> RR y x) /\
+          (!x y z. RR x y /\ RR y z ==> RR x z)
+          ==> (!a0 a1. DBLAMBDA_EQV R a0 a1 ==> RR a0 a1)`,
+  GEN_TAC THEN GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN
+  MATCH_MP_TAC RSTC_INDUCT THEN CONJ_TAC THEN
+  TRY (MATCH_MP_TAC DBLAMBDA_REL_INDUCT) THEN ASM_MESON_TAC[]);;
+
+let DBLAMBDA_EQV_REINDEX = prove
+ (`!R x y f. (!u v g. R u v ==> R (REINDEX g u) (REINDEX g v)) /\
+             DBLAMBDA_EQV R x y
+             ==> DBLAMBDA_EQV R (REINDEX f x) (REINDEX f y)`,
+  GEN_TAC THEN REWRITE_TAC[IMP_CONJ; RIGHT_FORALL_IMP_THM; DBLAMBDA_EQV] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RSTC_INDUCT THEN
+  ASM_MESON_TAC[RSTC_RULES; DBLAMBDA_REL_REINDEX]);;
+
+let DBLAMBDA_EQV_SUBST = prove
+ (`!R x y f. (!u v g. R u v ==> R (SUBST g u) (SUBST g v)) /\
+             DBLAMBDA_EQV R x y
+             ==> DBLAMBDA_EQV R (SUBST f x) (SUBST f y)`,
+  GEN_TAC THEN REWRITE_TAC[IMP_CONJ; RIGHT_FORALL_IMP_THM; DBLAMBDA_EQV] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RSTC_INDUCT THEN
+  ASM_MESON_TAC[RSTC_RULES; DBLAMBDA_REL_SUBST]);;

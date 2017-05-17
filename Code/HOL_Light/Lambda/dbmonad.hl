@@ -9,7 +9,7 @@
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
-(*  dB monads.                                                               *)
+(* dB monads.                                                                *)
 (* ------------------------------------------------------------------------- *)
 
 let DBMONAD_DEF = new_definition
@@ -18,81 +18,127 @@ let DBMONAD_DEF = new_definition
      (!f g x. op g (op f x) = op (\n. op g (f n)) x) /\
      (?i. (!f n. op f (i n) = f n) /\ (!x. op i x = x))`;;
 
-let DBMONAD_UNIT = new_definition
+let DBUNIT = new_definition
   `!op:(num->A)->A->A.
-     DBMONAD_UNIT op = (@i. (!f n. op f (i n) = f n) /\ (!x. op i x = x))`;;
+     DBUNIT op = (@i. (!f n. op f (i n) = f n) /\ (!x. op i x = x))`;;
 
 let DBMONAD = prove
  (`!op. DBMONAD op <=>
         (!f g x:A. op g (op f x) = op (\n. op g (f n)) x) /\
-        (!f n. op f (DBMONAD_UNIT op n) = f n) /\
-        (!x. op (DBMONAD_UNIT op) x = x)`,
-  REWRITE_TAC[DBMONAD_DEF; DBMONAD_UNIT] THEN MESON_TAC[]);;
+        (!f n. op f (DBUNIT op n) = f n) /\
+        (!x. op (DBUNIT op) x = x)`,
+  REWRITE_TAC[DBMONAD_DEF; DBUNIT] THEN MESON_TAC[]);;
 
 let DBMONAD_ASSOC = prove
- (`!op. DBMONAD op ==> !f g x:A. op g (op f x) = op (\n. op g (f n)) x`,
-  REWRITE_TAC[DBMONAD] THEN MESON_TAC[]);;
+ (`!op. DBMONAD op ==> !f g x:A. op g (op f x) = op (op g o f) x`,
+  REWRITE_TAC[DBMONAD; o_DEF] THEN MESON_TAC[]);;
 
 let DBMONAD_RUNIT = prove
- (`!op. DBMONAD op ==> (!f n. op f (DBMONAD_UNIT op n) = f n:A)`,
+ (`!op. DBMONAD op ==> (!f n. op f (DBUNIT op n) = f n:A)`,
   REWRITE_TAC[DBMONAD] THEN MESON_TAC[]);;
 
 let DBMONAD_LUNIT = prove
- (`!op. DBMONAD op ==> (!x:A. op (DBMONAD_UNIT op) x = x)`,
+ (`!op. DBMONAD op ==> (!x:A. op (DBUNIT op) x = x)`,
   REWRITE_TAC[DBMONAD] THEN MESON_TAC[]);;
 
 let DBMONAD_LUNIT_IMP = prove
- (`!op f x:A. DBMONAD op /\ (!i. f i = DBMONAD_UNIT op i) ==> op f x = x`,
+ (`!op f x:A. DBMONAD op /\ (!i. f i = DBUNIT op i) ==> op f x = x`,
   REPEAT GEN_TAC THEN REWRITE_TAC[GSYM FUN_EQ_THM; ETA_AX] THEN
   SIMP_TAC[DBMONAD_LUNIT]);;
 
-let DBMONAD_UNIT_UNIQUE = prove
+let DBUNIT_UNIQUE = prove
  (`!op i. DBMONAD op /\ (!f n. op f (i n) = f n:A) /\ (!x. op i x = x)
-          ==> DBMONAD_UNIT op = i`,
-  REWRITE_TAC[DBMONAD_DEF; DBMONAD_UNIT; FUN_EQ_THM] THEN MESON_TAC[]);;
+          ==> DBUNIT op = i`,
+  REWRITE_TAC[DBMONAD_DEF; DBUNIT; FUN_EQ_THM] THEN MESON_TAC[]);;
 
-let DBMONAD_SHIFTI = new_definition
-  `!op k n x:A. DBMONAD_SHIFTI op k n x =
-                op (\i. if i < k
-                        then DBMONAD_UNIT op i
-                        else DBMONAD_UNIT op (n + i))
-                   x`;;
+(* ------------------------------------------------------------------------- *)
+(* Free variables.                                                           *)
+(* ------------------------------------------------------------------------- *)
 
-let DBMONAD_OP_SHIFTI = prove
- (`!op f k n x:A. DBMONAD op
-                  ==> op f (DBMONAD_SHIFTI op k n x) =
-                      op (\i. f (if i < k then i else n + i)) x`,
-  REWRITE_TAC[DBMONAD] THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[DBMONAD_SHIFTI] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
-  REWRITE_TAC[FUN_EQ_THM] THEN GEN_TAC THEN COND_CASES_TAC THEN
-  ASM_REWRITE_TAC[]);;
+(*
+let DBFREES = new_definition
+  `DBFREES (op:(num->A)->A->A) x =
+   INTERS {s | !f. (!i. i IN s ==> f i = DBUNIT op i) ==> op f x = x}`;;
 
-let DBMONAD_SHIFTI_OP = prove
- (`!op f k n x:A. DBMONAD op
-                  ==> DBMONAD_SHIFTI op k n (op f x) =
-                      op (DBMONAD_SHIFTI op k n o f) x`,
-  REWRITE_TAC[DBMONAD] THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[DBMONAD_SHIFTI] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
-  REWRITE_TAC[FUN_EQ_THM; o_THM; DBMONAD_SHIFTI] THEN GEN_TAC);;
+let DBFREES' = new_definition
+  `DBFREES' (op:(num->A)->A->A) x =
+   {i | !f. (!j. ~(j = i) ==> f j = DBUNIT op j) ==> op f x = x}`;;
+
+let DBMONAD_LUNIT_FUN = prove
+ (`!f x:A. (!i. i IN DBFREES' op x ==> f i = DBUNIT op i) ==> op f x = x`,
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[DBFREES'] THEN
+  REWRITE_TAC[FORALL_IN_GSPEC] THEN
+  DISCH_TAC THEN
+
+let DBMONAD_EXTENS = prove
+ (`!op f g x:A. DBMONAD op /\ (!i. i IN DBFREES' op x ==> f i = g i)
+                ==> op f x = op g x`,
+
+  REPEAT STRIP_TAC THEN
+  ABBREV_TAC `s = {i:num | f i:A = g i}`
+  CLAIM_TAC "rmk" `s SUBSET DBFREES' op (x:A)`
+  REWRITE_TAC[DBFREES'; SUBSET] THEN
+  POP_ASSUM SUBST_VAR_TAC THEN
+  REWRITE_TAC[FORALL_IN_GSPEC] THEN
+  INTRO_TAC "!i; eq" THEN
+  REWRITE_TAC[IN_INTERS; FORALL_IN_GSPEC] THEN
+  GEN_TAC THEN
+  INTRO_TAC "hp" THEN
+*)
+
+(* ------------------------------------------------------------------------- *)
+(* DBREINDEX                                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+let DBREINDEX = new_definition
+  `DBREINDEX op f x:A = op (DBUNIT op o f) x`;;
+
+let DBREINDEX_DBREINDEX = prove
+ (`!op f g x:A.
+     DBMONAD op
+     ==> DBREINDEX op g (DBREINDEX op f x) = DBREINDEX op (g o f) x`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[DBREINDEX] THEN
+  ASM_SIMP_TAC[DBMONAD_ASSOC] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+  ASM_SIMP_TAC[DBMONAD_RUNIT; FUN_EQ_THM; o_THM]);;
+
+let DBREINDEX_DBUNIT = prove
+ (`!op f i. DBMONAD op ==> DBREINDEX op f (DBUNIT op i) = DBUNIT op (f i):A`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[DBREINDEX] THEN
+  ASM_SIMP_TAC[DBMONAD_RUNIT] THEN REWRITE_TAC[o_THM]);;
+
+let DBREINDEX_DBSUBST = prove
+ (`!op f g x:A. DBMONAD op
+                ==> DBREINDEX op f (op g x) = op (DBREINDEX op f o g) x`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN
+  ASM_SIMP_TAC[DBREINDEX; DBMONAD_ASSOC; o_THM] THEN
+  AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; DBREINDEX]);;
+
+let DBSUBST_DBREINDEX = prove
+ (`!op f g x:A. DBMONAD op ==> op f (DBREINDEX op g x) = op (f o g) x`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[DBREINDEX] THEN
+  ASM_SIMP_TAC[DBMONAD_ASSOC] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+  REWRITE_TAC[FUN_EQ_THM; o_THM] THEN GEN_TAC THEN
+  ASM_SIMP_TAC[DBMONAD_RUNIT]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Morphisms of dB-monads.                                                   *)
+(* ------------------------------------------------------------------------- *)
 
 let DBMONAD_MOR = new_definition
   `!op1 op2 h:A->B.
      DBMONAD_MOR op1 op2 h <=>
      DBMONAD op1 /\ DBMONAD op2 /\
-     (!n. h (DBMONAD_UNIT op1 n) = DBMONAD_UNIT op2 n) /\
+     (!n. h (DBUNIT op1 n) = DBUNIT op2 n) /\
      (!f x. h (op1 f x) = op2 (h o f) (h x))`;;
 
 let DBMONAD_MOR_THM = prove
  (`(!op1 op2 h:A->B. DBMONAD_MOR op1 op2 h ==> DBMONAD op1) /\
    (!op1 op2 h:A->B. DBMONAD_MOR op1 op2 h ==> DBMONAD op2) /\
    (!op1 op2 h:A->B. DBMONAD_MOR op1 op2 h
-                     ==> (!n. h (DBMONAD_UNIT op1 n) = DBMONAD_UNIT op2 n)) /\
+                     ==> (!n. h (DBUNIT op1 n) = DBUNIT op2 n)) /\
    (!op1 op2 h:A->B. DBMONAD_MOR op1 op2 h
                      ==> (!f x. h (op1 f x) = op2 (h o f) (h x)))`,
-  REWRITE_TAC[DBMONAD_MOR] THEN MESON_TAC[]);;
-
-let DBMONAD_MOR_SRC_THM = prove
- (`!op1 op2 h:A->B. DBMONAD_MOR op1 op2 h ==> DBMONAD op1`,
   REWRITE_TAC[DBMONAD_MOR] THEN MESON_TAC[]);;
 
 let DBMONAD_MOR_ID = prove
@@ -115,12 +161,12 @@ let DBMONAD_MOR_IMP = MATCH_MP EQ_IMP (SPEC_ALL DBMONAD_MOR);;
 let MODULE_DEF = new_definition
   `!op mop:(num->A)->B->B.
      MODULE op mop <=> DBMONAD op /\
-                       (!x. mop (DBMONAD_UNIT op) x = x) /\
-                       (!f g x. mop g (mop f x) = mop (\n. op g (f n)) x)`;;
+                       (!x. mop (DBUNIT op) x = x) /\
+                       (!f g x. mop g (mop f x) = mop (op g o f) x)`;;
 
 let SELF_MODULE = prove
  (`!op:(num->A)->A->A. MODULE op op <=> DBMONAD op`,
-  REWRITE_TAC[DBMONAD; MODULE_DEF] THEN MESON_TAC[]);;
+  REWRITE_TAC[DBMONAD; MODULE_DEF; o_DEF] THEN MESON_TAC[]);;
 
 let MODULE_MOR = new_definition
   `!op mop1 mop2 h.
@@ -159,34 +205,35 @@ let PB_MODULE = prove
 (*  Derived Modules.                                                         *)
 (* ------------------------------------------------------------------------- *)
 
-let DMOP = new_definition
-  `!k op:(num->A)->A->A mop:(num->A)->M->M f:num->A x:M.
-     DMOP k op mop f x =
-       mop (\n. if n < k then DBMONAD_UNIT op n else
-                op (\n. DBMONAD_UNIT op (k + n)) (f (n - k))) x`;;
+let DBDERIV = new_recursive_definition num_RECURSION
+  `(!op f. DBDERIV op f 0 = DBUNIT op 0:A) /\
+   (!op f i. DBDERIV op f (SUC i) = DBREINDEX op SUC (f i))`;;
 
-let DMOP_0 = prove
- (`!op mop:(num->A)->M->M. DBMONAD op ==> DMOP 0 op mop = mop`,
-  REWRITE_TAC[DBMONAD] THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[FUN_EQ_THM; DMOP; LT; ADD; SUB_0; ETA_AX]);;
+let DBDERIV_DBUNIT = prove
+ (`!op. DBMONAD op ==> DBDERIV op (DBUNIT op) = DBUNIT op:num->A`,
+  GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[FUN_EQ_THM] THEN NUM_CASES_TAC THEN
+  REWRITE_TAC[DBDERIV] THEN ASM_SIMP_TAC[DBREINDEX_DBUNIT]);;
+
+let DMOP = new_definition
+  `!op:(num->A)->A->A mop:(num->A)->M->M f:num->A x:M.
+     DMOP op mop f x = mop (DBDERIV op f) x:M`;;
 
 let MODULE_DMOP = prove
- (`!op mop:(num->A)->M->M k.
-     MODULE op mop ==> MODULE op (DMOP k op mop)`,
-  ASM_REWRITE_TAC[DBMONAD; MODULE_DEF; DMOP] THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[] THENL
-  [SUBGOAL_THEN `(\n. if n < k then DBMONAD_UNIT op n else
-                      DBMONAD_UNIT op (k + n - k)) = DBMONAD_UNIT op :num->A`
-     SUBST1_TAC THEN ASM_REWRITE_TAC[FUN_EQ_THM] THEN
-   MESON_TAC[ARITH_RULE `~(x < k) ==> k + x - k = x`];
-   AP_THM_TAC  THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM] THEN
-   GEN_TAC THEN COND_CASES_TAC THEN
-   ASM_REWRITE_TAC[ARITH_RULE `~(k + x' < k) /\ (k + n) - k = n`]]);;
+ (`!op mop:(num->A)->M->M. MODULE op mop ==> MODULE op (DMOP op mop)`,
+  REPEAT GEN_TAC THEN INTRO_TAC "mod" THEN
+  HYP_TAC "mod -> mnd munit massoc" (REWRITE_RULE[MODULE_DEF]) THEN
+  ASM_REWRITE_TAC[MODULE_DEF] THEN REPEAT STRIP_TAC THEN
+  REWRITE_TAC[DMOP] THEN ASM_SIMP_TAC[DBDERIV_DBUNIT] THEN
+  REWRITE_TAC[o_THM] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+  REWRITE_TAC[FUN_EQ_THM] THEN NUM_CASES_TAC THEN
+  ASM_SIMP_TAC[DBDERIV; DBMONAD_RUNIT; o_THM] THEN
+  ASM_SIMP_TAC[DBSUBST_DBREINDEX; DBREINDEX_DBSUBST] THEN
+  AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; DBDERIV]);;
 
 let MODULE_DMOP_MOR = prove
  (`!op:(num->A)->A->A mop1 mop2 h:M->N.
      MODULE_MOR op mop1 mop2 h
-     ==> MODULE_MOR op (DMOP k op mop1) (DMOP k op mop2) h`,
+     ==> MODULE_MOR op (DMOP op mop1) (DMOP op mop2) h`,
   SIMP_TAC[MODULE_MOR; MODULE_DMOP; DMOP]);;
 
 let MODULE_MOR_INV = prove
@@ -228,7 +275,7 @@ let MODULE_ISOM_UNFOLD = prove
 
 let EXP_DBMONAD = new_definition
   `!op:(num->A)->A->A h g.
-     EXP_DBMONAD op h g <=> MODULE_ISOM op op (DMOP (SUC 0) op op) h g`;;
+     EXP_DBMONAD op h g <=> MODULE_ISOM op op (DMOP op op) h g`;;
 
 let EXP_DBMONAD_MOR = new_definition
   `!op1 h1 g1 op2 h2 g2 f:A->B.

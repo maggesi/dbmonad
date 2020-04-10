@@ -5,7 +5,7 @@
 (*          University of Florence, Italy                                    *)
 (*          http://www.math.unifi.it/~maggesi/                               *)
 (*                                                                           *)
-(*          (c) Copyright, Marco Maggesi 2005 2006 2017                      *)
+(*          (c) Copyright, Marco Maggesi 2005 2006 2017, 2020                *)
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
@@ -91,19 +91,6 @@ let EXP_DBMONAD_UNFOLD = prove
               MODULE_MOR; DMOP] THEN
   EQ_TAC THEN STRIP_TAC THEN ASM_REWRITE_TAC[] THEN
   ASM_SIMP_TAC[MODULE_DMOP; SELF_MODULE]);;
-
-
-
-
-
-(*
-        op (\n. if n = 0 then DBLAMBDA_EXP_MAP op h g y else
-                DBUNIT op (PRE n)) (h (DBLAMBDA_EXP_MAP op h g x))
-*)
-
-
-
-
 
 let DBLAMBDA_EXPMAP = new_recursive_definition dblambda_RECURSION
   `(!op h g:A->A i. DBLAMBDA_EXPMAP op h g (REF i) = DBUNIT op i) /\
@@ -202,19 +189,15 @@ let DBLAMBDA_EXPMAP_REL = prove
    ALL_TAC] THEN
   REPEAT STRIP_TAC THEN ASM_REWRITE_TAC[DBLAMBDA_EXPMAP]);;
 
-
-
 let LC_EXPMAP = define
   `!op h g:A->A x. LC_EXPMAP op h g x = DBLAMBDA_EXPMAP op h g (LC_LIFT x)`;;
 
-g `!op h:A->A g x.
+let LC_EXPMAP_FACTOR = prove
+ (`!op h:A->A g x.
      EXP_DBMONAD op h g
-     ==> LC_EXPMAP op h g (LC_PROJ x) = DBLAMBDA_EXPMAP op h g x`;;
-e (REPEAT GEN_TAC THEN DISCH_TAC);;
-e (REWRITE_TAC[LC_EXPMAP]);;
-e (MATCH_MP_TAC DBLAMBDA_EXPMAP_REL);;
-e (ASM_REWRITE_TAC[LC_LIFT_PROJ]);;
-let LC_EXPMAP_FACTOR = top_thm ();;
+     ==> LC_EXPMAP op h g (LC_PROJ x) = DBLAMBDA_EXPMAP op h g x`,
+  REPEAT GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[LC_EXPMAP] THEN
+  MATCH_MP_TAC DBLAMBDA_EXPMAP_REL THEN ASM_REWRITE_TAC[LC_LIFT_PROJ]);;
 
 g `!op h:A->A g.
       EXP_DBMONAD op h g

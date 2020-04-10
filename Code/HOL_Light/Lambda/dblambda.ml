@@ -356,6 +356,100 @@ let DBLAMBDA_REL_SUBST = prove
   ASM_SIMP_TAC[DBLAMBDA_REL_RULES]);;
 
 (* ------------------------------------------------------------------------- *)
+(* Structural reduction relation between lambda terms.                       *)
+(* ------------------------------------------------------------------------- *)
+
+let DBLAMBDA_RED = new_definition
+  `!R. DBLAMBDA_RED R = RTC (DBLAMBDA_REL R)`;;
+
+let DBLAMBDA_RED_INC = prove
+ (`!R x y. R x y ==> DBLAMBDA_RED R x y`,
+  SIMP_TAC[DBLAMBDA_RED; RTC_INC; DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_RED_REFL = prove
+ (`!R x. DBLAMBDA_RED R x x`,
+  REWRITE_TAC[DBLAMBDA_RED; RTC_REFL]);;
+
+let DBLAMBDA_RED_REFL_IMP = MESON[DBLAMBDA_RED_REFL]
+  `!R x y. x = y ==> DBLAMBDA_RED R x y`;;
+
+let DBLAMBDA_RED_TRANS = prove
+ (`!R x y z. DBLAMBDA_RED R x y /\ DBLAMBDA_RED R y z ==> DBLAMBDA_RED R x z`,
+  REWRITE_TAC[DBLAMBDA_RED; RTC_TRANS]);;
+
+let DBLAMBDA_RED_ABS = prove
+ (`!R x y. DBLAMBDA_RED R x y ==> DBLAMBDA_RED R (ABS x) (ABS y)`,
+  GEN_TAC THEN REWRITE_TAC[DBLAMBDA_RED] THEN MATCH_MP_TAC RTC_INDUCT THEN
+  MESON_TAC[RTC_RULES; DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_RED_APP_L = prove
+ (`!R z x y. DBLAMBDA_RED R x y ==> DBLAMBDA_RED R (APP x z) (APP y z)`,
+  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_RED] THEN
+  MATCH_MP_TAC RTC_INDUCT THEN MESON_TAC[RTC_RULES; DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_RED_APP_R = prove
+ (`!R z x y. DBLAMBDA_RED R x y ==> DBLAMBDA_RED R (APP z x) (APP z y)`,
+  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[DBLAMBDA_RED] THEN
+  MATCH_MP_TAC RTC_INDUCT THEN MESON_TAC[RTC_RULES; DBLAMBDA_REL_RULES]);;
+
+let DBLAMBDA_RED_APP =
+  MESON[DBLAMBDA_RED_TRANS; DBLAMBDA_RED_APP_L; DBLAMBDA_RED_APP_R]
+  `!R x1 x2 y1 y2. DBLAMBDA_RED R x1 y1 /\ DBLAMBDA_RED R x2 y2
+                   ==> DBLAMBDA_RED R (APP x1 x2) (APP y1 y2)`;;
+
+let DBLAMBDA_RED_RULES =
+  MESON[DBLAMBDA_RED_INC; DBLAMBDA_RED_APP; DBLAMBDA_RED_ABS;
+        DBLAMBDA_RED_REFL; DBLAMBDA_RED_TRANS]
+  `!R. (!x y. R x y ==> DBLAMBDA_RED R x y) /\
+       (!x y. DBLAMBDA_RED R x y ==> DBLAMBDA_RED R (ABS x) (ABS y)) /\
+       (!x1 x2 y1 y2. DBLAMBDA_RED R x1 y1 /\ DBLAMBDA_RED R x2 y2
+                      ==> DBLAMBDA_RED R (APP x1 x2) (APP y1 y2)) /\
+       (!x. DBLAMBDA_RED R x x) /\
+       (!x y z. DBLAMBDA_RED R x y /\ DBLAMBDA_RED R y z
+                ==> DBLAMBDA_RED R x z)`;;
+
+let DBLAMBDA_RED_CASES = prove
+ (`!a0 a1.
+      DBLAMBDA_RED R a0 a1 <=>
+      R a0 a1 \/
+      (?x1 y1 x2 y2.
+         a0 = APP x1 x2 /\ a1 = APP y1 y2 /\
+         DBLAMBDA_RED R x1 y1 /\ DBLAMBDA_RED R x2 y2) \/
+      (?x y. a0 = ABS x /\ a1 = ABS y /\ DBLAMBDA_RED R x y) \/
+      (?y. DBLAMBDA_RED R a0 y /\ DBLAMBDA_RED R y a1)`,
+  REPEAT GEN_TAC THEN EQ_TAC THENL
+  [REWRITE_TAC[DBLAMBDA_RED] THEN MESON_TAC[RTC_CASES; RTC_RULES];
+   MESON_TAC[DBLAMBDA_RED_RULES]]);;
+
+let DBLAMBDA_RED_INDUCT = prove
+ (`!RR R. (!x y. R x y ==> RR x y) /\
+          (!x1 y1 x2 y2.
+             RR x1 y1 /\ RR x2 y2 ==> RR (APP x1 x2) (APP y1 y2)) /\
+          (!x y. RR x y ==> RR (ABS x) (ABS y)) /\
+          (!x. RR x x) /\
+          (!x y z. RR x y /\ RR y z ==> RR x z)
+          ==> (!a0 a1. DBLAMBDA_RED R a0 a1 ==> RR a0 a1)`,
+  GEN_TAC THEN GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[DBLAMBDA_RED] THEN
+  MATCH_MP_TAC RTC_INDUCT THEN CONJ_TAC THEN
+  TRY (MATCH_MP_TAC DBLAMBDA_REL_INDUCT) THEN ASM_MESON_TAC[]);;
+
+let DBLAMBDA_RED_REINDEX = prove
+ (`!R x y f. (!u v g. R u v ==> R (REINDEX g u) (REINDEX g v)) /\
+             DBLAMBDA_RED R x y
+             ==> DBLAMBDA_RED R (REINDEX f x) (REINDEX f y)`,
+  GEN_TAC THEN REWRITE_TAC[IMP_CONJ; RIGHT_FORALL_IMP_THM; DBLAMBDA_RED] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_INDUCT THEN
+  ASM_MESON_TAC[RTC_RULES; DBLAMBDA_REL_REINDEX]);;
+
+let DBLAMBDA_RED_SUBST = prove
+ (`!R x y f. (!u v g. R u v ==> R (SUBST g u) (SUBST g v)) /\
+             DBLAMBDA_RED R x y
+             ==> DBLAMBDA_RED R (SUBST f x) (SUBST f y)`,
+  GEN_TAC THEN REWRITE_TAC[IMP_CONJ; RIGHT_FORALL_IMP_THM; DBLAMBDA_RED] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_INDUCT THEN
+  ASM_MESON_TAC[RTC_RULES; DBLAMBDA_REL_SUBST]);;
+
+(* ------------------------------------------------------------------------- *)
 (* Structural equivalence relation between lambda terms.                     *)
 (* ------------------------------------------------------------------------- *)
 

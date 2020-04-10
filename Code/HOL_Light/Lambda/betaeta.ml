@@ -61,6 +61,124 @@ let DBLAMBDA_ETA_REINDEX = prove
   ASM_MESON_TAC[DBLAMBDA_ETA_SUBST]);;
 
 (* ------------------------------------------------------------------------- *)
+(* Beta-eta reduction binary relation.                                       *)
+(* ------------------------------------------------------------------------- *)
+
+let REDREL = new_definition
+  `REDREL = DBLAMBDA_RED (\x y. DBLAMBDA_BETA x y \/ DBLAMBDA_ETA x y)`;;
+
+let REDREL_BETA = prove
+ (`!x y. DBLAMBDA_BETA x y ==> REDREL x y`,
+  SIMP_TAC[REDREL; DBLAMBDA_RED_INC]);;
+
+let REDREL_ETA = prove
+ (`!x y. DBLAMBDA_ETA x y ==> REDREL x y`,
+  SIMP_TAC[REDREL; DBLAMBDA_RED_INC]);;
+
+let REDREL_ABS = prove
+ (`!x y. REDREL x y ==> REDREL (ABS x) (ABS y)`,
+  SIMP_TAC[REDREL; DBLAMBDA_RED_ABS]);;
+
+let REDREL_APP = prove
+ (`!x1 y1 x2 y2. REDREL x1 y1 /\ REDREL x2 y2
+                 ==> REDREL (APP x1 x2) (APP y1 y2)`,
+  SIMP_TAC[REDREL; DBLAMBDA_RED_APP]);;
+
+let REDREL_REFL = prove
+ (`!x. REDREL x x`,
+  REWRITE_TAC[REDREL; DBLAMBDA_RED_REFL]);;
+
+let REDREL_TRANS = prove
+ (`!x y z. REDREL x y /\ REDREL y z ==> REDREL x z`,
+  REWRITE_TAC[REDREL; DBLAMBDA_RED_TRANS]);;
+
+let REDREL_RULES = prove
+ (`(!x y. DBLAMBDA_BETA x y ==> REDREL x y) /\
+   (!x y. DBLAMBDA_ETA x y ==> REDREL x y) /\
+   (!x1 y1 x2 y2. REDREL x1 y1 /\ REDREL x2 y2
+                  ==> REDREL (APP x1 x2) (APP y1 y2)) /\
+   (!x y. REDREL x y ==> REDREL (ABS x) (ABS y)) /\
+   (!x. REDREL x x) /\
+   (!x y z. REDREL x y /\ REDREL y z ==> REDREL x z)`,
+  REWRITE_TAC[REDREL_REFL; REDREL_BETA; REDREL_ETA;
+              REDREL_ABS; REDREL_APP] THEN
+  MESON_TAC[REDREL_TRANS]);;
+
+let REDREL_INDUCT = prove
+ (`!R. (!x y. DBLAMBDA_BETA x y ==> R x y) /\
+       (!x y. DBLAMBDA_ETA x y ==> R x y) /\
+       (!x1 y1 x2 y2. R x1 y1 /\ R x2 y2 ==> R (APP x1 x2) (APP y1 y2)) /\
+       (!x y. R x y ==> R (ABS x) (ABS y)) /\
+       (!x. R x x) /\
+       (!x y z. R x y /\ R y z ==> R x z)
+       ==> (!a0 a1. REDREL a0 a1 ==> R a0 a1)`,
+  GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[REDREL; DBLAMBDA_RED] THEN
+  MATCH_MP_TAC RTC_INDUCT THEN ASM_REWRITE_TAC[] THEN
+  MATCH_MP_TAC DBLAMBDA_REL_INDUCT THEN ASM_MESON_TAC[]);;
+
+let REDREL_CASES = prove
+ (`!a0 a1.
+     REDREL a0 a1 <=>
+     DBLAMBDA_BETA a0 a1 \/
+     DBLAMBDA_ETA a0 a1 \/
+     (?x1 y1 x2 y2.
+        a0 = APP x1 x2 /\ a1 = APP y1 y2 /\ REDREL x1 y1 /\ REDREL x2 y2) \/
+     (?x y. a0 = ABS x /\ a1 = ABS y /\ REDREL x y) \/
+     (?y. REDREL a0 y /\ REDREL y a1)`,
+  REPEAT GEN_TAC THEN EQ_TAC THENL
+  [REWRITE_TAC[REDREL] THEN GEN_REWRITE_TAC LAND_CONV [DBLAMBDA_RED_CASES] THEN
+   REWRITE_TAC[] THEN STRIP_TAC THEN
+   ASM_REWRITE_TAC[injectivity "dblambda"] THEN ASM_MESON_TAC[];
+   ASM_MESON_TAC[REDREL_RULES]]);;
+
+let REDREL_REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i)
+           ==> REDREL (REINDEX f x)  (REINDEX g x)`,
+  DBLAMBDA_INDUCT_TAC THEN REWRITE_TAC[REINDEX; FREES_INVERSION] THENL
+  [MESON_TAC[REDREL_REFL];
+   ASM_MESON_TAC[REDREL_APP];
+   REPEAT STRIP_TAC THEN MATCH_MP_TAC REDREL_ABS THEN
+   FIRST_X_ASSUM MATCH_MP_TAC THEN NUM_CASES_TAC THEN
+   ASM_REWRITE_TAC[SLIDE; SUC_INJ]]);;
+
+let REDREL_REINDEX = prove
+ (`!x y f. REDREL x y ==> REDREL (REINDEX f x) (REINDEX f y)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[REDREL; DBLAMBDA_RED] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN
+  ASM_REWRITE_TAC[] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_REL_REINDEX THEN
+  ASM_REWRITE_TAC[] THEN
+  MESON_TAC[DBLAMBDA_BETA_REINDEX; DBLAMBDA_ETA_REINDEX]);;
+
+let REDREL_SUBST = prove
+ (`!x y f. REDREL x y ==> REDREL (SUBST f x) (SUBST f y)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[REDREL; DBLAMBDA_RED] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN
+  ASM_REWRITE_TAC[] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_REL_SUBST THEN
+  ASM_REWRITE_TAC[] THEN
+  MESON_TAC[DBLAMBDA_BETA_SUBST; DBLAMBDA_ETA_SUBST]);;
+
+let REDREL_REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i)
+           ==> REDREL (REINDEX f x) (REINDEX g x)`,
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[REINDEX; FREES_INVERSION; FORALL_UNWIND_THM2] THEN
+  ASM_SIMP_TAC[REDREL_RULES] THEN REPEAT STRIP_TAC THEN
+  MATCH_MP_TAC REDREL_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[SLIDE] THEN ASM_MESON_TAC[]);;
+
+let REDREL_SUBST_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> REDREL (f i) (g i))
+           ==> REDREL (SUBST f x) (SUBST g x)`,
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[SUBST; FREES_INVERSION; FORALL_UNWIND_THM2] THEN
+  ASM_SIMP_TAC[REDREL_APP] THEN REPEAT STRIP_TAC THEN
+  MATCH_MP_TAC REDREL_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV; REDREL_REFL] THEN
+  ASM_MESON_TAC[REDREL_REINDEX]);;
+
+(* ------------------------------------------------------------------------- *)
 (*  LC relation                                                              *)
 (* ------------------------------------------------------------------------- *)
 
@@ -137,24 +255,6 @@ let LC_REL_CASES = prove
   [REWRITE_TAC[LC_REL] THEN MESON_TAC[DBLAMBDA_EQV_CASES];
    ASM_MESON_TAC[LC_REL_RULES]]);;
 
-(*
-let LC_REL_SHIFTI_IMP = prove
- (`!x y k n. x === y ==> SHIFTI k n x === SHIFTI k n y`,
-  SUBGOAL_THEN `!x y. x === y ==> !k n. SHIFTI k n x === SHIFTI k n y`
-    (fun th -> SIMP_TAC[th]) THEN
-  MATCH_MP_TAC LC_REL_INDUCT THEN REWRITE_TAC[SHIFTI] THEN
-  MESON_TAC[LC_REL_RULES; SHIFTI_BETA; SHIFTI_ETA]);;
-
-let LC_REL_SLIDEI = prove
- (`!f g k n. (!n. f n === g n) ==> SLIDEI k f n === SLIDEI k g n`,
-  REWRITE_TAC[SLIDEI] THEN ASM_MESON_TAC[LC_REL_SHIFTI_IMP; LC_REL_REFL]);;
-
-let LC_REL_SUBSTI_FUN = prove
- (`!x f g. (!i. f i === g i) ==> SUBSTI f x === SUBSTI g x`,
-  DBLAMBDA_INDUCT_TAC THEN ASM_SIMP_TAC[SUBSTI; LC_REL_APP] THEN
-  ASM_MESON_TAC[LC_REL_ABS; LC_REL_SLIDEI]);;
-*)
-
 let LC_REL_REINDEX_EXTENS = prove
  (`!x f g. (!i. i IN FREES x ==> f i = g i) ==> REINDEX f x === REINDEX g x`,
   DBLAMBDA_INDUCT_TAC THEN REWRITE_TAC[REINDEX; FREES_INVERSION] THENL
@@ -163,14 +263,6 @@ let LC_REL_REINDEX_EXTENS = prove
    REPEAT STRIP_TAC THEN MATCH_MP_TAC LC_REL_ABS THEN
    FIRST_X_ASSUM MATCH_MP_TAC THEN NUM_CASES_TAC THEN
    ASM_REWRITE_TAC[SLIDE; SUC_INJ]]);;
-
-(*
-let LC_REL_DERIV = prove
- (`!f g i. DERIV f i === DERIV g i <=> i = 0 \/ f (PRE i) === g (PRE i)`,
-  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN REWRITE_TAC[DERIV; PRE] THEN
-  REWRITE_TAC[LC_REL_REFL; NOT_SUC]
-  REWRITE_TAC[NOT_SUC]
-*)
 
 let LC_REL_REINDEX = prove
  (`!x y f. x === y ==> REINDEX f x === REINDEX f y`,

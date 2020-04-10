@@ -85,6 +85,12 @@ let ITER_BINARY = prove
 (* Reflexive, transitive, simmetric closure.                                 *)
 (* ------------------------------------------------------------------------- *)
 
+let RTC_MAP = prove
+ (`!R f x y:A. (!u v. R u v ==> R (f u) (f v)) /\ RTC R x y
+             ==> RTC R (f x) (f y)`,
+  GEN_TAC THEN GEN_TAC THEN REWRITE_TAC[IMP_CONJ; RIGHT_FORALL_IMP_THM] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_INDUCT THEN ASM_MESON_TAC[RTC_RULES]);;
+
 let RSTC_MAP = prove
  (`!R f x y:A. (!u v. R u v ==> R (f u) (f v)) /\ RSTC R x y
              ==> RSTC R (f x) (f y)`,

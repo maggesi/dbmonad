@@ -1,6 +1,6 @@
 (* ========================================================================= *)
-(*  Syntactic Lambda Calculus "a la" de Bruijn.                              *)
-(*  Here syntactic means: "terms are not identified by beta-eta relation".   *)
+(*  Initial semantics based on De Brujin encoding                            *)
+(*  with dbmonads and their modules.                                         *)
 (*                                                                           *)
 (*  Author: Marco Maggesi                                                    *)
 (*          University of Florence, Italy                                    *)
@@ -151,13 +151,17 @@ let DERIV_REF = prove
 
 let DERIV_EXTENS = prove
  (`!f g i. DERIV f i = DERIV g i <=> i = 0 \/ f (PRE i) = g (PRE i)`,
-  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN REWRITE_TAC[DERIV] THEN
-  REWRITE_TAC[NOT_SUC; PRE] THEN SIMP_TAC[REINDEX_INJ; SUC_INJ]);;
+  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
+  REWRITE_TAC[DERIV; NOT_SUC; PRE] THEN SIMP_TAC[REINDEX_INJ; SUC_INJ]);;
 
 let DERIV_SLIDE = prove
  (`!f g i. DERIV g (SLIDE f i) = DERIV (g o f) i`,
-  REPEAT GEN_TAC THEN STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
-  REWRITE_TAC[SLIDE; DERIV; o_THM]);;
+  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
+  REWRITE_TAC[DERIV; SLIDE; o_THM]);;
+
+let DERIV_O_SUC = prove
+ (`!f. DERIV f o SUC = REINDEX SUC o f`,
+  REWRITE_TAC[FUN_EQ_THM; o_THM; DERIV]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Parallel substitution (higher-order style).                               *)
@@ -295,6 +299,13 @@ let PUSHENV_SLIDE = prove
  (`!f g u:A i. PUSHENV u f (SLIDE g i) = PUSHENV u (f o g) i`,
   GEN_TAC THEN GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
   REWRITE_TAC[PUSHENV; SLIDE; o_THM]);;
+
+let SUBST_PUSHENV_LEMMA = prove
+ (`!f x i. SUBST (PUSHENV (SUBST f y) REF) (DERIV f i) =
+           SUBST f (PUSHENV y REF i)`,
+  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
+  REWRITE_TAC[PUSHENV; DERIV; SUBST; SUBST_REINDEX] THEN
+  REWRITE_TAC[SUBST_REF_EQ; o_THM; PUSHENV]);;
 
 let SUBST1_EQ_SUBST = prove
  (`!t u. SUBST1 u t = SUBST (PUSHENV u REF) t`,

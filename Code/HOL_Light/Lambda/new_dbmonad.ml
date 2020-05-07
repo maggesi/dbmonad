@@ -22,11 +22,11 @@ let IS_DBMONAD = new_definition
    (!f i. bind f (unit i) = f i)`;;
 
 (* ------------------------------------------------------------------------- *)
-(* Given an injective map `unit:num ->A` we can easily give `DBBIND` so     *)
-(* that (DBBIND,unit) is a DB-monad on `:A`.   The idea is to consider      *)
+(* Given an injective map `unit:num ->A`, there is a trivial "bind" operator *)
+(* so that `(bind,unit)` is a DB-monad on `:A`.   The idea is to consider    *)
 (* every term outside of the image of `unit` as "constants" (i.e., terms     *)
-(* where the DBBIND acts trivially).                                        *)
-(* This is implemented by the following operator `CONSTANT_DBBIND`.         *)
+(* where the `bind` acts trivially).                                         *)
+(* This is implemented by the following operator `CONSTANT_DBBIND`.          *)
 (* ------------------------------------------------------------------------- *)
 
 let CONSTANT_DBBIND = new_definition

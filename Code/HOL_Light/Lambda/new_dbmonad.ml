@@ -1,3 +1,7 @@
+(* ========================================================================= *)
+(* De Bruijn monads.                                                         *)
+(* ========================================================================= *)
+
 (* ------------------------------------------------------------------------- *)
 (* Mischellanea.                                                             *)
 (* ------------------------------------------------------------------------- *)
@@ -260,6 +264,14 @@ let DBREINDEX_DBBIND = prove
  (`!m:A dbmonad f g x.
      DBREINDEX m f (DBBIND m g x) = DBBIND m (DBREINDEX m f o g) x`,
   REWRITE_TAC[DBREINDEX; DBBIND_DBBIND]);;
+
+let DBREINDEX_DBREINDEX = prove
+ (`INFINITE (:A)
+   ==> !m:A dbmonad f g x.
+         DBREINDEX m f (DBREINDEX m g x) = DBREINDEX m (f o g) x`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[DBREINDEX; DBBIND_DBBIND] THEN
+  AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM] THEN
+  ASM_SIMP_TAC[DBMONAD_CLAUSES; o_THM]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Homomorphisms of DB-monads.                                               *)

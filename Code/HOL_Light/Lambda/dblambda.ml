@@ -10,6 +10,32 @@
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
+(* Lemmata.                                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+let FORALL_NUM_THM = prove
+ (`!P. (!i. P i) <=> P 0 /\ (!i. P (SUC i))`,
+  METIS_TAC[cases "num"]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Handy tactics for cases analysis on inductive datatypes.                  *)
+(* ------------------------------------------------------------------------- *)
+
+let GEN_THEN (vtac:term->tactic) : tactic =
+  fun (asl,w) as gl ->
+    let x,bod = try dest_forall w with Failure _ ->
+                  failwith "GEN_THEN: Not universally quantified" in
+    let avoids = itlist (union o thm_frees o snd) asl (frees w) in
+    let x' = mk_primed_var avoids x in
+    (X_GEN_TAC x' THEN vtac  x') gl;;
+
+let CASES_TAC (tm:term) : tactic =
+  let ty = fst(dest_type(type_of tm)) in
+  STRUCT_CASES_TAC (ISPEC tm (cases ty));;
+
+let CASES_GEN_TAC : tactic = GEN_THEN CASES_TAC;;
+
+(* ------------------------------------------------------------------------- *)
 (* Type for lambda terms using de Bruijn notation.                           *)
 (* ------------------------------------------------------------------------- *)
 
@@ -27,6 +53,7 @@ let DBLAMBDA_INDUCT_TAC =
   [GEN_TAC; CONJ_TAC THEN GEN_TAC THENL
    [GEN_TAC THEN DISCH_THEN (CONJUNCTS_THEN ASSUME_TAC); DISCH_TAC]];;
 
+(* 
 let dblambda_CASES = MESON[dblambda_INDUCT]
   `!P. (!a. P (REF a)) /\ (!a0 a1. P (APP a0 a1)) /\ (!a. P (ABS a))
        ==> (!x. P x)`;;
@@ -35,6 +62,7 @@ let DBLAMBDA_CASES_TAC =
   MATCH_MP_TAC dblambda_INDUCT THEN CONJ_TAC THENL
   [GEN_TAC; CONJ_TAC THEN GEN_TAC THENL
    [GEN_TAC; ALL_TAC]];;
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* Free references.                                                          *)
@@ -71,15 +99,15 @@ let SLIDE = new_recursive_definition num_RECURSION
 
 let SLIDE_I = prove
  (`SLIDE I = I`,
-  REWRITE_TAC[FUN_EQ_THM] THEN NUM_CASES_TAC THEN REWRITE_TAC[SLIDE; I_THM]);;
+  REWRITE_TAC[FUN_EQ_THM] THEN CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; I_THM]);;
 
 let SLIDE_SLIDE = prove
  (`!f g i. SLIDE f (SLIDE g i) = SLIDE (f o g) i`,
-  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN REWRITE_TAC[SLIDE; o_THM]);;
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; o_THM]);;
 
 let SLIDE_INJ = prove
  (`!f i j. (!k l. f k = f l ==> k = l) ==> (SLIDE f i = SLIDE f j <=> i = j)`,
-  GEN_TAC THEN NUM_CASES_TAC THEN NUM_CASES_TAC THEN
+  GEN_TAC THEN CASES_GEN_TAC THEN CASES_GEN_TAC THEN
   REWRITE_TAC[SLIDE; NOT_SUC; SUC_INJ] THEN MESON_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -102,7 +130,7 @@ let REINDEX_EXTENS = prove
   REWRITE_TAC[FREES_INVERSION; REINDEX] THEN REPEAT STRIP_TAC THEN
   REWRITE_TAC[injectivity "dblambda"] THEN ASM_SIMP_TAC[] THENL
   [ASM_MESON_TAC[]; FIRST_X_ASSUM MATCH_MP_TAC] THEN
-  NUM_CASES_TAC THEN REWRITE_TAC[SLIDE; SUC_INJ] THEN ASM_SIMP_TAC[]);;
+  CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; SUC_INJ] THEN ASM_SIMP_TAC[]);;
 
 let REINDEX_EXTENS_EQ = prove
  (`!x f g. REINDEX f x = REINDEX g x <=> (!i. i IN FREES x ==> f i = g i)`,
@@ -132,7 +160,7 @@ let REINDEX_REINDEX = prove
 let REINDEX_INJ = prove
  (`!x y f. (!i j. f i = f j ==> i = j)
            ==> (REINDEX f x = REINDEX f y <=> x = y)`,
-  DBLAMBDA_INDUCT_TAC THEN DBLAMBDA_CASES_TAC THEN
+  DBLAMBDA_INDUCT_TAC THEN CASES_GEN_TAC THEN
   REWRITE_TAC[REINDEX; distinctness "dblambda"] THEN
   REWRITE_TAC[injectivity "dblambda"] THEN REPEAT STRIP_TAC THEN
   ASM_MESON_TAC[SLIDE_INJ]);;
@@ -151,12 +179,12 @@ let DERIV_REF = prove
 
 let DERIV_EXTENS = prove
  (`!f g i. DERIV f i = DERIV g i <=> i = 0 \/ f (PRE i) = g (PRE i)`,
-  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN
   REWRITE_TAC[DERIV; NOT_SUC; PRE] THEN SIMP_TAC[REINDEX_INJ; SUC_INJ]);;
 
 let DERIV_SLIDE = prove
  (`!f g i. DERIV g (SLIDE f i) = DERIV (g o f) i`,
-  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN
   REWRITE_TAC[DERIV; SLIDE; o_THM]);;
 
 let DERIV_O_SUC = prove
@@ -180,8 +208,10 @@ let SUBST_EXTENS = prove
  (`!x f g. SUBST f x = SUBST g x <=> (!i. i IN FREES x ==> f i = g i)`,
   DBLAMBDA_INDUCT_TAC THEN
   ASM_REWRITE_TAC[SUBST; FREES_INVERSION; DERIV_EXTENS;
-                  injectivity "dblambda"] THEN
-  METIS_TAC[PRE; NOT_SUC; cases "num"]);;
+                  injectivity "dblambda"; FORALL_UNWIND_THM2] THENL
+  [MESON_TAC[]; REPEAT GEN_TAC] THEN
+  GEN_REWRITE_TAC LAND_CONV [FORALL_NUM_THM] THEN
+  REWRITE_TAC[PRE; NOT_SUC]);;
 
 let SUBST_REF_EQ = prove
  (`!x f. SUBST f x = x <=> (!i. i IN FREES x ==> f i = REF i)`,
@@ -197,8 +227,7 @@ let SUBST_REINDEX = prove
 
 let REINDEX_SLIDE = prove
  (`!g f i. REINDEX (SLIDE g) (DERIV f i) = DERIV (REINDEX g o f) i`,
-  REPEAT GEN_TAC THEN STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
-  REWRITE_TAC[DERIV; REINDEX] THEN
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN REWRITE_TAC[DERIV; REINDEX] THEN
   REWRITE_TAC[SLIDE; REINDEX_REINDEX; REINDEX_EXTENS_EQ; o_THM]);;
 
 let REINDEX_SUBST = prove
@@ -209,7 +238,7 @@ let REINDEX_SUBST = prove
 
 let SUBST_DERIV = prove
  (`!f g i. SUBST (DERIV g) (DERIV f i) = DERIV (SUBST g o f) i`,
-  REPEAT GEN_TAC THEN STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN
   REWRITE_TAC[DERIV; SUBST; SUBST_REINDEX; REINDEX_SUBST;
               SUBST_EXTENS; o_THM]);;
 
@@ -225,7 +254,7 @@ let REINDEX_EQ_SUBST = prove
     (fun th -> REWRITE_TAC[th; FUN_EQ_THM]) THEN
   DBLAMBDA_INDUCT_TAC THEN GEN_TAC THEN
   ASM_REWRITE_TAC[REINDEX; SUBST; o_THM; injectivity "dblambda"] THEN
-  REWRITE_TAC[SUBST_EXTENS] THEN NUM_CASES_TAC THEN DISCH_TAC THEN
+  REWRITE_TAC[SUBST_EXTENS] THEN CASES_GEN_TAC THEN DISCH_TAC THEN
   REWRITE_TAC[o_THM; DERIV; SLIDE; REINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -251,11 +280,12 @@ let SUBST1 = new_definition
 (* Link between linear and parallel substitution.                            *)
 (* ------------------------------------------------------------------------- *)
 
+needs "Library/iter.ml";;
+
 let ITER_SLIDE = prove
  (`!n k i. ITER k SLIDE ((+) n) i = if i < k then i else n + i`,
   GEN_TAC THEN INDUCT_TAC THEN REWRITE_TAC[ITER] THENL
-  [REWRITE_TAC[LT]; GEN_TAC] THEN
-  STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THENL
+  [REWRITE_TAC[LT]; CASES_GEN_TAC] THENL
   [REWRITE_TAC[SLIDE; LT_0; ITER]; ALL_TAC] THEN
   ASM_REWRITE_TAC[LT_SUC; SLIDE] THEN ARITH_TAC);;
 
@@ -263,16 +293,15 @@ let SHIFTI_EQ_REINDEX = prove
  (`!n t k. SHIFTI k n t = REINDEX (ITER k SLIDE ((+) n)) t`,
   GEN_TAC THEN DBLAMBDA_INDUCT_TAC THEN
   ASM_REWRITE_TAC[SHIFTI; REINDEX; injectivity "dblambda"] THENL
-  [REWRITE_TAC[ITER_SLIDE]; ALL_TAC] THEN
-  GEN_TAC THEN REWRITE_TAC[REINDEX_EXTENS_EQ; ITER]);;
+  [REWRITE_TAC[ITER_SLIDE]; GEN_TAC] THEN
+  REWRITE_TAC[REINDEX_EXTENS_EQ; ITER]);;
 
 let ITER_DERIV = prove
  (`!k i. ITER k DERIV f i =
          if i < k then REF i else REINDEX ((+) k) (f (i - k))`,
   INDUCT_TAC THEN REWRITE_TAC[ITER] THEN GEN_TAC THENL
   [MATCH_MP_TAC EQ_SYM THEN REWRITE_TAC[REINDEX_ID; LT; SUB_0] THEN ARITH_TAC;
-   ALL_TAC] THEN
-  STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
+   CASES_TAC `i:num`] THEN
   ASM_REWRITE_TAC[DERIV; LT_0; LT_SUC] THEN
   COND_CASES_TAC THEN REWRITE_TAC[REINDEX; REINDEX_REINDEX] THEN
   REWRITE_TAC[SUB_SUC; REINDEX_EXTENS_EQ; o_THM; ADD]);;
@@ -297,35 +326,33 @@ let PUSHENV = new_recursive_definition num_RECURSION
 
 let PUSHENV_SLIDE = prove
  (`!f g u:A i. PUSHENV u f (SLIDE g i) = PUSHENV u (f o g) i`,
-  GEN_TAC THEN GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
+  REPEAT GEN_TAC THEN CASES_TAC `i:num` THEN
   REWRITE_TAC[PUSHENV; SLIDE; o_THM]);;
 
 let SUBST_PUSHENV_LEMMA = prove
  (`!f x i. SUBST (PUSHENV (SUBST f y) REF) (DERIV f i) =
            SUBST f (PUSHENV y REF i)`,
-  GEN_TAC THEN GEN_TAC THEN NUM_CASES_TAC THEN
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN
   REWRITE_TAC[PUSHENV; DERIV; SUBST; SUBST_REINDEX] THEN
   REWRITE_TAC[SUBST_REF_EQ; o_THM; PUSHENV]);;
 
 let SUBST1_EQ_SUBST = prove
  (`!t u. SUBST1 u t = SUBST (PUSHENV u REF) t`,
   REPEAT GEN_TAC THEN
-  REWRITE_TAC[SUBST1; SUBSTI1_EQ_SUBST; ITER_BINARY; SUBST_EXTENS] THEN
-  NUM_CASES_TAC THEN DISCH_TAC THEN REWRITE_TAC[PUSHENV] THEN
-  REWRITE_TAC[NOT_SUC; injectivity "dblambda"] THEN ARITH_TAC);;
+  REWRITE_TAC[SUBST1; SUBSTI1_EQ_SUBST; SUBST_EXTENS; ITER] THEN
+  GEN_TAC THEN DISCH_TAC THEN CASES_TAC `i:num` THEN
+  REWRITE_TAC[PUSHENV; NOT_SUC; injectivity "dblambda"] THEN ARITH_TAC);;
 
 let SUBST1_SUBST1 = prove
  (`!t u w. SUBST1 w (SUBST1 u t) = SUBST1 (SUBST1 w u) (SUBSTI1 1 w t)`,
   REPEAT GEN_TAC THEN
-  REWRITE_TAC[SUBST1_EQ_SUBST; SUBSTI1_EQ_SUBST; SUBST_SUBST; SUBST_EXTENS;
-              ITER_BINARY; o_THM] THEN
-  NUM_CASES_TAC THEN DISCH_TAC THEN
-  REWRITE_TAC[PUSHENV; DERIV; SUBST; REINDEX] THEN
-  REWRITE_TAC[SUBST_REINDEX] THEN MATCH_MP_TAC EQ_SYM THEN
-  STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
-  REWRITE_TAC[PUSHENV; SUBST; NOT_SUC; SUBST_REF_EQ; o_THM;
-              injectivity "dblambda"] THEN
-  ARITH_TAC);;
+  REWRITE_TAC[SUBST1_EQ_SUBST; SUBSTI1_EQ_SUBST; SUBST_SUBST;
+              SUBST_EXTENS; ITER_BINARY; o_THM] THEN
+  CASES_GEN_TAC THEN DISCH_TAC THEN
+  REWRITE_TAC[DERIV; SUBST; PUSHENV; SUBST_REINDEX] THEN
+  CASES_TAC `n:num` THEN REWRITE_TAC[PUSHENV; NOT_SUC; SUBST; o_THM] THENL
+  [MATCH_MP_TAC EQ_SYM THEN REWRITE_TAC[SUBST_REF_EQ; o_THM; PUSHENV];
+   REWRITE_TAC[injectivity "dblambda"] THEN ARITH_TAC]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Structural relation relation between lambda terms.                        *)
@@ -346,8 +373,7 @@ let DBLAMBDA_REL_REINDEX = prove
  (`!R x y f. (!u v g. R u v ==> R (REINDEX g u) (REINDEX g v)) /\
              DBLAMBDA_REL R x y
              ==> DBLAMBDA_REL R (REINDEX f x) (REINDEX f y)`,
-  REPEAT STRIP_TAC THEN
-  SUBGOAL_THEN
+  REPEAT STRIP_TAC THEN SUBGOAL_THEN
     `!x y. DBLAMBDA_REL R x y
            ==> !f. DBLAMBDA_REL R (REINDEX f x) (REINDEX f y)`
     (fun th -> ASM_MESON_TAC[th]) THEN
@@ -358,8 +384,7 @@ let DBLAMBDA_REL_SUBST = prove
  (`!R x y f. (!u v g. R u v ==> R (SUBST g u) (SUBST g v)) /\
              DBLAMBDA_REL R x y
              ==> DBLAMBDA_REL R (SUBST f x) (SUBST f y)`,
-  REPEAT STRIP_TAC THEN
-  SUBGOAL_THEN
+  REPEAT STRIP_TAC THEN SUBGOAL_THEN
     `!x y. DBLAMBDA_REL R x y
            ==> !f. DBLAMBDA_REL R (SUBST f x) (SUBST f y)`
     (fun th -> ASM_MESON_TAC[th]) THEN
@@ -369,6 +394,8 @@ let DBLAMBDA_REL_SUBST = prove
 (* ------------------------------------------------------------------------- *)
 (* Structural reduction relation between lambda terms.                       *)
 (* ------------------------------------------------------------------------- *)
+
+needs "Library/rstc.ml";;
 
 let DBLAMBDA_RED = new_definition
   `!R. DBLAMBDA_RED R = RTC (DBLAMBDA_REL R)`;;

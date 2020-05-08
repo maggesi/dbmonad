@@ -266,12 +266,12 @@ let DBREINDEX_DBBIND = prove
 (* ------------------------------------------------------------------------- *)
 
 let DBMONAD_HOM = new_definition
-  `DBMONAD_HOM (m:A dbmonad) (n:B dbmonad) =
+  `DBMONAD_HOM (m:A dbmonad,n:B dbmonad) =
    {h:A->B | (!i. h (DBUNIT m i) = DBUNIT n i) /\
              (!f x. h (DBBIND m f x) = DBBIND n (h o f) (h x))}`;;
 
 let IN_DBMONAD_HOM = prove
- (`!m n h:A->B. h IN DBMONAD_HOM m n <=>
+ (`!m n h:A->B. h IN DBMONAD_HOM (m,n) <=>
                 (!i. h (DBUNIT m i) = DBUNIT n i) /\
                 (!f x. h (DBBIND m f x) = DBBIND n (h o f) (h x))`,
   REWRITE_TAC[DBMONAD_HOM; IN_ELIM_THM]);;

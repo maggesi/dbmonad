@@ -236,6 +236,31 @@ let DBMONAD_IS_DBMONAD = prove
 let [DBBIND_DBBIND;DBUNIT_DBBIND;DBBIND_DBUNIT] =
   CONJUNCTS (REWRITE_RULE[FORALL_AND_THM] DBMONAD_CLAUSES);;
 
+let DBREINDEX = new_definition
+  `DBREINDEX (m:A dbmonad) f = DBBIND m (DBUNIT m o f)`;;
+
+let DBREINDEX_UNIT_GEN = prove
+ (`!m:A dbmonad f i. DBREINDEX m f (DBUNIT m i) =
+                     if FINITE (:A) then ARB else DBUNIT m (f i)`,
+  REWRITE_TAC[DBREINDEX; DBMONAD_CLAUSES_GEN; o_THM]);;
+
+let DBREINDEX_UNIT = prove
+ (`!m:A dbmonad f i.
+     INFINITE(:A) ==> DBREINDEX m f (DBUNIT m i) = DBUNIT m (f i)`,
+  SIMP_TAC[DBREINDEX_UNIT_GEN; INFINITE]);;
+
+let DBBIND_DBREINDEX = prove
+ (`INFINITE (:A)
+   ==> !m:A dbmonad f g x. DBBIND m f (DBREINDEX m g x) = DBBIND m (f o g) x`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[DBREINDEX; DBBIND_DBBIND] THEN
+  AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM] THEN
+  ASM_SIMP_TAC[DBBIND_DBUNIT]);;
+
+let DBREINDEX_DBBIND = prove
+ (`!m:A dbmonad f g x.
+     DBREINDEX m f (DBBIND m g x) = DBBIND m (DBREINDEX m f o g) x`,
+  REWRITE_TAC[DBREINDEX; DBBIND_DBBIND]);;
+
 (* ------------------------------------------------------------------------- *)
 (* Homomorphisms of DB-monads.                                               *)
 (* ------------------------------------------------------------------------- *)

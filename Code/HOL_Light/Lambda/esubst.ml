@@ -59,3 +59,42 @@ let ESHIFT = new_definition
 
 let EREF = new_definition
   `EREF i = ESHIFT i EREF0`;;
+
+let ESUBSTFUN = new_recursive_definition eterm_RECUR
+
+help "prove_recursive_functions_exist";;
+  (map dest_var o frees)
+prove_recursive_functions_exist eterm_RECUR
+  `(!f. ESUBSTTM f EREF0 = f 0) /\
+   (!f x y. ESUBSTTM f (EAPP x y) = EAPP (ESUBSTTM f x) (ESUBSTTM f x)) /\
+   (!f x. ESUBSTTM f (EABS x) = EABS (ESUBSTTM f x)) /\
+   (!f x s. ESUBSTTM f (ESUBST x s) = ESUBSTTM (ESUBSTTM f o ESUBSTFUN s) x) /\
+   ESUBSTFUN EID = EREF /\
+   ESUBSTFUN ESHIFT1 = EREF o SUC /\
+   (!x s. ESUBSTFUN (EPUSH x s) = \i. match i with 0 -> x | SUC j -> ESUBSTFUN s j) /\
+   (!s t. ESUBSTFUN (ECOMP s t) = ESUBSTTM (ESUBSTFUN t) o (ESUBSTFUN s))`;;
+
+let MSUBST = new_recursive_definition eterm_RECUR
+  `(!f. MSUBST f EREF0 = f 0) /\
+   (!f x y. MSUBST f (EAPP x y) = EAPP (MSUBST f x) (MSUBST f y)) /\
+   (!f x. MSUBST f (EABS x) = EABS (MSUBST (EPUSH EREF0 (ECOMP s ESHIFT1)) x)) /\
+   (!f x s. MSUBST f (ESUBST x s) = ESUBST x (ECOMP f s)) /\
+
+   `
+
+let SHIFT = new_recursive_definition num_RECURSION
+  `(!f. SHIFT f 0 = 0) /\
+   (!f i. SHIFT f (SUC i) = SUC (f i))`;;
+
+let ETERMREINDEX = new_recursive_definition eterm_RECUR
+  `(!f. ETERMREINDEX f EREF0 = EREF (f 0)) /\
+   (!f x y. ETERMREINDEX f (EAPP x y) = EAPP (ETERMREINDEX f x) (ETERMREINDEX f y)) /\
+   (!f x. ETERMREINDEX f (EABS x) = EABS (ETERMREINDEX (SLIDE f) x)) /\
+   (!f x s. ETERMREINDEX f (ESUBST x s) = ESUBST x (ESUBSTREINDEX f s)) /\
+   (!f. ESUBSTREINDEX f EID = )`;;
+
+let MSUBST = new_recursive_definition eterm_RECUR
+  `(!f. MSUBST f EREF0 = f 0) /\
+   (!f. MSUBST f (EAPP x y) = EAPP (MSUBST f `;;
+
+   (!x y. EAPP (EABS x) y ~> ESUBST x (EPUSH y EID)) /\

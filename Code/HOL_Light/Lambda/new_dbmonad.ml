@@ -287,3 +287,15 @@ let IN_DBMONAD_HOM = prove
                 (!i. h (DBUNIT m i) = DBUNIT n i) /\
                 (!f x. h (DBBIND m f x) = DBBIND n (h o f) (h x))`,
   REWRITE_TAC[DBMONAD_HOM; IN_ELIM_THM]);;
+
+let DBMONAD_HOM_ID = prove
+ (`!m:A dbmonad. I IN DBMONAD_HOM (m,m)`,
+  REWRITE_TAC[IN_DBMONAD_HOM; I_THM; I_O_ID]);;
+
+let DBMONAD_HOM_o = prove
+ (`!m1 m2 m3 h1:A->B h2:B->C.
+     h1 IN DBMONAD_HOM (m1,m2) /\
+     h2 IN DBMONAD_HOM (m2,m3)
+     ==> (h2 o h1) IN DBMONAD_HOM (m1,m3)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[IN_DBMONAD_HOM] THEN
+  STRIP_TAC THEN ASM_REWRITE_TAC[o_THM; o_ASSOC]);;

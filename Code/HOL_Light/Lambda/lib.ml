@@ -122,3 +122,28 @@ let TRIVIAL_ARITH = prove
    REWRITE_TAC[NOT_SUC; PRE; LE; LT_0; LT; SUC_INJ;
                ADD; ADD_0; ADD_SUC; SUB_0; SUB_SUC; LT_SUC]);;
 
+(* ------------------------------------------------------------------------- *)
+(* Lemmata.                                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+let FORALL_NUM_THM = prove
+ (`!P. (!i. P i) <=> P 0 /\ (!i. P (SUC i))`,
+  METIS_TAC[cases "num"]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Handy tactics for cases analysis on inductive datatypes.                  *)
+(* ------------------------------------------------------------------------- *)
+
+let GEN_THEN (vtac:term->tactic) : tactic =
+  fun (asl,w) as gl ->
+    let x,bod = try dest_forall w with Failure _ ->
+                  failwith "GEN_THEN: Not universally quantified" in
+    let avoids = itlist (union o thm_frees o snd) asl (frees w) in
+    let x' = mk_primed_var avoids x in
+    (X_GEN_TAC x' THEN vtac  x') gl;;
+
+let CASES_TAC (tm:term) : tactic =
+  let ty = fst(dest_type(type_of tm)) in
+  STRUCT_CASES_TAC (ISPEC tm (cases ty));;
+
+let CASES_GEN_TAC : tactic = GEN_THEN CASES_TAC;;

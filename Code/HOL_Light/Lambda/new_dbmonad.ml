@@ -15,6 +15,10 @@ let HAS_SIZE_1_INDISCERNIBLE = prove
   REWRITE_TAC[ONE; HAS_SIZE_CLAUSES; UNWIND_THM2; NOT_IN_EMPTY] THEN
   REWRITE_TAC[EXTENSION; IN_SING; IN_UNIV] THEN MESON_TAC[]);;
 
+let HAS_SIZE_1_IMP_EQ = prove
+ (`!x y:A. (:A) HAS_SIZE 1 ==> x = y`,
+  MESON_TAC[HAS_SIZE_1_INDISCERNIBLE]);;
+
 (* ------------------------------------------------------------------------- *)
 (* Definition of De Brujin monad structure.                                  *)
 (* ------------------------------------------------------------------------- *)
@@ -299,3 +303,11 @@ let DBMONAD_HOM_o = prove
      ==> (h2 o h1) IN DBMONAD_HOM (m1,m3)`,
   REPEAT GEN_TAC THEN REWRITE_TAC[IN_DBMONAD_HOM] THEN
   STRIP_TAC THEN ASM_REWRITE_TAC[o_THM; o_ASSOC]);;
+
+let DBMONAD_HOM_REINDEX = prove
+ (`!m1 m2 h:A->B f:num->num x. 
+     h IN DBMONAD_HOM (m1,m2)
+     ==> h (DBREINDEX m1 f x) = DBREINDEX m2 f (h x)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[IN_DBMONAD_HOM] THEN STRIP_TAC THEN
+  ASM_REWRITE_TAC[DBREINDEX] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+  ASM_REWRITE_TAC[FUN_EQ_THM; o_THM]);;

@@ -90,6 +90,26 @@ let [DBMBIND_DBMBIND;DBUNIT_DBMBIND] =
   CONJUNCTS (REWRITE_RULE[FORALL_AND_THM] DBMODULE_CLAUSES);;
 
 (* ------------------------------------------------------------------------- *)
+(* Reindexing for modules.                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+let DBMREINDEX = new_definition
+  `DBMREINDEX (m:(A,M)dbmodule) (f:num->num) (x:M) : M =
+   DBMBIND m (DBUNIT (DBBASE m) o f) x`;;
+
+let DBMREINDEX_ID = prove
+ (`!m:(A,M)dbmodule x. DBMREINDEX m I x = x`,
+  REWRITE_TAC[DBMREINDEX; I_O_ID; DBMODULE_CLAUSES]);;
+
+let DBMREINDEX_DBMREINDEX = prove
+ (`!m:(A,M)dbmodule f g x.
+     INFINITE (:A)
+     ==> DBMREINDEX m f (DBMREINDEX m g x) = DBMREINDEX m (f o g) x`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[DBMREINDEX; DBMODULE_CLAUSES] THEN
+  AP_THM_TAC THEN AP_TERM_TAC THEN
+  ASM_SIMP_TAC[FUN_EQ_THM; DBMONAD_CLAUSES; o_THM]);;
+
+(* ------------------------------------------------------------------------- *)
 (* Tautological module.                                                      *)
 (* ------------------------------------------------------------------------- *)
 
@@ -104,13 +124,17 @@ let SELF_DBMODULE_CLAUSES = prove
   [REWRITE_TAC[IS_DBMODULE; DBMONAD_CLAUSES]; ALL_TAC] THEN
   ASM_SIMP_TAC[DBBASE_MK_DBMODULE; DBMBIND_MK_DBMODULE]);;
 
+let DBMREINDEX_SELF_DBMODULE = prove
+ (`!m:A dbmonad. DBMREINDEX (SELF_DBMODULE m) = DBREINDEX m`,
+  REWRITE_TAC[FUN_EQ_THM; DBMREINDEX; DBREINDEX; SELF_DBMODULE_CLAUSES]);;
+
 (* ------------------------------------------------------------------------- *)
 (*  Product module.                                                          *)
 (* ------------------------------------------------------------------------- *)
 
 let DBMODULE_PRODUCT = new_definition
   `DBMODULE_PRODUCT (l:(A,B)dbmodule,m:(A,C)dbmodule) : (A,B#C)dbmodule =
-   MK_DBMODULE (DBBASE l, 
+   MK_DBMODULE (DBBASE l,
                 (\f (x,y). (DBMBIND l f x, DBMBIND m f y)))`;;
 
 let DBMODULE_PRODUCT_CLAUSES = prove
@@ -122,11 +146,19 @@ let DBMODULE_PRODUCT_CLAUSES = prove
   INTRO_TAC "!l m; infty dbase_eq" THEN
   C SUBGOAL_THEN
     (fun th -> SIMP_TAC[DBMODULE_PRODUCT; DBBASE_MK_DBMODULE; DBMBIND_MK_DBMODULE; th])
-    `IS_DBMODULE (DBBASE l, 
+    `IS_DBMODULE (DBBASE l,
                   (\f (x,y). (DBMBIND (l:(A,B)dbmodule) f x,
                               DBMBIND (m:(A,C)dbmodule) f y)))` THEN
   REWRITE_TAC[IS_DBMODULE; FORALL_PAIR_THM; PAIR_EQ; DBMODULE_CLAUSES] THEN
   ASM_REWRITE_TAC[DBMODULE_CLAUSES]);;
+
+let DBMREINDEX_DBMODULE_PRODUCT = prove
+ (`!m1:(A,M)dbmodule m2:(A,N)dbmodule f x y.
+     INFINITE (:A) /\ DBBASE m1 = DBBASE m2
+     ==> DBMREINDEX (DBMODULE_PRODUCT (m1,m2)) f (x,y) =
+         (DBMREINDEX m1 f x, DBMREINDEX m2 f y)`,
+  REPEAT GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[DBMREINDEX] THEN
+  ASM_SIMP_TAC[DBMODULE_PRODUCT_CLAUSES]);;
 
 (* ------------------------------------------------------------------------- *)
 (*  Derived module.                                                          *)
@@ -164,6 +196,16 @@ let DBDERIVED_CLAUSES = prove
    ALL_TAC] THEN
   ASM_SIMP_TAC[DBDERIVED; DBBASE_MK_DBMODULE; DBMBIND_MK_DBMODULE]);;
 
+let DBREINDEX_DBDERIVED = prove
+ (`!m:(A,M)dbmodule.
+     INFINITE(:A)
+     ==> DBMREINDEX (DBDERIVED m) f = DBMREINDEX m (SLIDE f)`,
+  GEN_TAC THEN DISCH_TAC THEN
+  ASM_SIMP_TAC[FUN_EQ_THM; DBMREINDEX; DBDERIVED_CLAUSES] THEN
+  GEN_TAC THEN AP_THM_TAC THEN AP_TERM_TAC THEN
+  REWRITE_TAC[FUN_EQ_THM; o_THM] THEN CASES_GEN_TAC THEN
+  REWRITE_TAC[SLIDE; DBSLIDE; o_THM] THEN ASM_SIMP_TAC[DBREINDEX_UNIT]);;
+
 (* ------------------------------------------------------------------------- *)
 (* Morphisms of modules (over the same base DB-monad).                       *)
 (* ------------------------------------------------------------------------- *)
@@ -191,6 +233,13 @@ let MODULE_HOM_o = prove
      ==> h o g IN MODULE_HOM (m1,m3)`,
   REWRITE_TAC[MODULE_HOM_CLAUSES] THEN REPEAT STRIP_TAC THEN
   ASM_REWRITE_TAC[o_DEF]);;
+
+let MODULE_HOM_DBMREINDEX = prove
+ (`!m1:(A,M)dbmodule m2:(A,N)dbmodule h f x.
+     h IN MODULE_HOM (m1,m2)
+     ==> h (DBMREINDEX m1 f x) = DBMREINDEX m2 f (h x)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[MODULE_HOM_CLAUSES] THEN STRIP_TAC THEN
+  ASM_REWRITE_TAC[DBMREINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
 (*  Pull-back module.                                                        *)

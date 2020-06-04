@@ -27,17 +27,6 @@ let DBLAMBDA_INDUCT_TAC =
   [GEN_TAC; CONJ_TAC THEN GEN_TAC THENL
    [GEN_TAC THEN DISCH_THEN (CONJUNCTS_THEN ASSUME_TAC); DISCH_TAC]];;
 
-(* 
-let dblambda_CASES = MESON[dblambda_INDUCT]
-  `!P. (!a. P (REF a)) /\ (!a0 a1. P (APP a0 a1)) /\ (!a. P (ABS a))
-       ==> (!x. P x)`;;
-
-let DBLAMBDA_CASES_TAC =
-  MATCH_MP_TAC dblambda_INDUCT THEN CONJ_TAC THENL
-  [GEN_TAC; CONJ_TAC THEN GEN_TAC THENL
-   [GEN_TAC; ALL_TAC]];;
-*)
-
 (* ------------------------------------------------------------------------- *)
 (* Free references.                                                          *)
 (* ------------------------------------------------------------------------- *)

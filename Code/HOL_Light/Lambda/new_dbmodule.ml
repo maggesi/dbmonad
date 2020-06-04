@@ -2,8 +2,6 @@
 (* De Bruijn modules.                                                        *)
 (* ========================================================================= *)
 
-needs "Lambda/new_dbmonad.ml";;
-
 (* ------------------------------------------------------------------------- *)
 (* Modules.                                                                  *)
 (* ------------------------------------------------------------------------- *)
@@ -164,35 +162,35 @@ let DBMREINDEX_DBMODULE_PRODUCT = prove
 (*  Derived module.                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-let DBSLIDE = new_recursive_definition num_RECURSION
-  `(!t f. DBSLIDE t f 0 = DBUNIT t 0:A) /\
-   (!t f i. DBSLIDE t f (SUC i) = DBREINDEX t SUC (f i))`;;
+let DBDERIV = new_recursive_definition num_RECURSION
+  `(!t f. DBDERIV t f 0 = DBUNIT t 0:A) /\
+   (!t f i. DBDERIV t f (SUC i) = DBREINDEX t SUC (f i))`;;
 
 let DBDERIVED = new_definition
   `DBDERIVED (m:(A,B)dbmodule) =
-   MK_DBMODULE (DBBASE m,\f. DBMBIND m (DBSLIDE (DBBASE m) f))`;;
+   MK_DBMODULE (DBBASE m,\f. DBMBIND m (DBDERIV (DBBASE m) f))`;;
 
 let DBDERIVED_CLAUSES = prove
  (`INFINITE (:A)
    ==> (!m:(A,B)dbmodule. DBBASE (DBDERIVED m) = DBBASE m) /\
        (!m:(A,B)dbmodule f.
-          DBMBIND (DBDERIVED m) f = DBMBIND m (DBSLIDE (DBBASE m) f))`,
+          DBMBIND (DBDERIVED m) f = DBMBIND m (DBDERIV (DBBASE m) f))`,
   DISCH_TAC THEN CLAIM_TAC "rmk"
     `!m:(A,B)dbmodule.
-       IS_DBMODULE (DBBASE m,\f. DBMBIND m (DBSLIDE (DBBASE m) f))` THENL
+       IS_DBMODULE (DBBASE m,\f. DBMBIND m (DBDERIV (DBBASE m) f))` THENL
   [REWRITE_TAC[IS_DBMODULE; DBMODULE_CLAUSES] THEN REPEAT STRIP_TAC THENL
    [SUBGOAL_THEN
-      `DBSLIDE (DBBASE (m:(A,B)dbmodule)) (DBUNIT (DBBASE m)) =
+      `DBDERIV (DBBASE (m:(A,B)dbmodule)) (DBUNIT (DBBASE m)) =
        DBUNIT (DBBASE m)`
       (fun th -> ASM_SIMP_TAC[th; DBMODULE_CLAUSES]) THEN
-    REWRITE_TAC[FUN_EQ_THM] THEN INDUCT_TAC THEN REWRITE_TAC[DBSLIDE] THEN
+    REWRITE_TAC[FUN_EQ_THM] THEN INDUCT_TAC THEN REWRITE_TAC[DBDERIV] THEN
     ASM_SIMP_TAC[DBREINDEX_UNIT];
     AP_THM_TAC THEN AP_TERM_TAC THEN
     REWRITE_TAC[FUN_EQ_THM] THEN INDUCT_TAC THEN
-    ASM_SIMP_TAC[DBSLIDE; o_THM; DBMONAD_CLAUSES] THEN
+    ASM_SIMP_TAC[DBDERIV; o_THM; DBMONAD_CLAUSES] THEN
     ASM_SIMP_TAC[DBBIND_DBREINDEX; DBREINDEX_DBBIND] THEN
     AP_THM_TAC THEN AP_TERM_TAC THEN
-    REWRITE_TAC[FUN_EQ_THM; o_THM; DBSLIDE]];
+    REWRITE_TAC[FUN_EQ_THM; o_THM; DBDERIV]];
    ALL_TAC] THEN
   ASM_SIMP_TAC[DBDERIVED; DBBASE_MK_DBMODULE; DBMBIND_MK_DBMODULE]);;
 
@@ -204,41 +202,41 @@ let DBREINDEX_DBDERIVED = prove
   ASM_SIMP_TAC[FUN_EQ_THM; DBMREINDEX; DBDERIVED_CLAUSES] THEN
   GEN_TAC THEN AP_THM_TAC THEN AP_TERM_TAC THEN
   REWRITE_TAC[FUN_EQ_THM; o_THM] THEN CASES_GEN_TAC THEN
-  REWRITE_TAC[SLIDE; DBSLIDE; o_THM] THEN ASM_SIMP_TAC[DBREINDEX_UNIT]);;
+  REWRITE_TAC[SLIDE; DBDERIV; o_THM] THEN ASM_SIMP_TAC[DBREINDEX_UNIT]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Morphisms of modules (over the same base DB-monad).                       *)
 (* ------------------------------------------------------------------------- *)
 
-let MODULE_HOM = new_definition
+let DBMODULE_HOM = new_definition
   `!m1:(A,M)dbmodule m2:(A,N)dbmodule.
-     MODULE_HOM (m1,m2) =
+     DBMODULE_HOM (m1,m2) =
      {h | DBBASE m1 = DBBASE m2 /\
           (!f:num->A x. h (DBMBIND m1 f x) = DBMBIND m2 f (h x))}`;;
 
-let MODULE_HOM_CLAUSES = prove
+let IN_DBMODULE_HOM = prove
  (`!m1:(A,M)dbmodule m2:(A,N)dbmodule h:M->N.
-     h IN MODULE_HOM (m1,m2)
+     h IN DBMODULE_HOM (m1,m2)
      <=> DBBASE m1 = DBBASE m2 /\
          (!f:num->A x. h (DBMBIND m1 f x) = DBMBIND m2 f (h x))`,
- REWRITE_TAC[MODULE_HOM; IN_ELIM_THM] THEN MESON_TAC[]);;
+ REWRITE_TAC[DBMODULE_HOM; IN_ELIM_THM] THEN MESON_TAC[]);;
 
-let MODULE_HOM_ID = prove
- (`!m:(A,M)dbmodule. I IN MODULE_HOM (m,m)`,
-  REWRITE_TAC[MODULE_HOM_CLAUSES; I_THM]);;
+let DBMODULE_HOM_ID = prove
+ (`!m:(A,M)dbmodule. I IN DBMODULE_HOM (m,m)`,
+  REWRITE_TAC[IN_DBMODULE_HOM; I_THM]);;
 
-let MODULE_HOM_o = prove
+let DBMODULE_HOM_o = prove
  (`!m1:(A,L)dbmodule m2:(A,M)dbmodule m3:(A,N)dbmodule g:L->M h:M->N.
-     g IN MODULE_HOM (m1,m2) /\ h IN MODULE_HOM (m2,m3)
-     ==> h o g IN MODULE_HOM (m1,m3)`,
-  REWRITE_TAC[MODULE_HOM_CLAUSES] THEN REPEAT STRIP_TAC THEN
+     g IN DBMODULE_HOM (m1,m2) /\ h IN DBMODULE_HOM (m2,m3)
+     ==> h o g IN DBMODULE_HOM (m1,m3)`,
+  REWRITE_TAC[IN_DBMODULE_HOM] THEN REPEAT STRIP_TAC THEN
   ASM_REWRITE_TAC[o_DEF]);;
 
-let MODULE_HOM_DBMREINDEX = prove
+let DBMODULE_HOM_DBMREINDEX = prove
  (`!m1:(A,M)dbmodule m2:(A,N)dbmodule h f x.
-     h IN MODULE_HOM (m1,m2)
+     h IN DBMODULE_HOM (m1,m2)
      ==> h (DBMREINDEX m1 f x) = DBMREINDEX m2 f (h x)`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[MODULE_HOM_CLAUSES] THEN STRIP_TAC THEN
+  REPEAT GEN_TAC THEN REWRITE_TAC[IN_DBMODULE_HOM] THEN STRIP_TAC THEN
   ASM_REWRITE_TAC[DBMREINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -271,54 +269,54 @@ let PULLBACK_DBMODULE_CLAUSES = prove
 (* Big Morphisms of modules (over different base DB-monad).                  *)
 (* ------------------------------------------------------------------------- *)
 
-let BIG_MODULE_HOM = new_definition
+let BIG_DBMODULE_HOM = new_definition
   `!m1:(A,M)dbmodule m2:(B,N)dbmodule.
-     BIG_MODULE_HOM (m1,m2) =
+     BIG_DBMODULE_HOM (m1,m2) =
      {(h:A->B,k:M->N) |
         h IN DBMONAD_HOM (DBBASE m1,DBBASE m2) /\
         (!f:num->A x. k (DBMBIND m1 f x) = DBMBIND m2 (h o f) (k x))}`;;
 
-let IN_BIG_MODULE_HOM = prove
+let IN_BIG_DBMODULE_HOM = prove
  (`!m1:(A,M)dbmodule m2:(B,N)dbmodule h:A->B k:M->N.
-     (h,k) IN BIG_MODULE_HOM (m1,m2)
+     (h,k) IN BIG_DBMODULE_HOM (m1,m2)
      <=> h IN DBMONAD_HOM (DBBASE m1,DBBASE m2) /\
          (!f:num->A x. k (DBMBIND m1 f x) = DBMBIND m2 (h o f) (k x))`,
- REWRITE_TAC[BIG_MODULE_HOM; IN_ELIM_THM; PAIR_EQ] THEN MESON_TAC[]);;
+ REWRITE_TAC[BIG_DBMODULE_HOM; IN_ELIM_THM; PAIR_EQ] THEN MESON_TAC[]);;
 
-let BIG_MODULE_HOM_ID = prove
- (`!m:(A,M)dbmodule. (I,I) IN BIG_MODULE_HOM (m,m)`,
-  REWRITE_TAC[IN_BIG_MODULE_HOM; I_THM; I_O_ID; DBMONAD_HOM_ID]);;
+let BIG_DBMODULE_HOM_ID = prove
+ (`!m:(A,M)dbmodule. (I,I) IN BIG_DBMODULE_HOM (m,m)`,
+  REWRITE_TAC[IN_BIG_DBMODULE_HOM; I_THM; I_O_ID; DBMONAD_HOM_ID]);;
 
-let BIG_MODULE_HOM_o = prove
+let BIG_DBMODULE_HOM_o = prove
  (`!m1:(A,L)dbmodule m2:(B,M)dbmodule m3:(C,N)dbmodule
      h1:A->B h2:B->C k1:L->M k2:M->N.
-     (h1,k1) IN BIG_MODULE_HOM (m1,m2) /\ (h2,k2) IN BIG_MODULE_HOM (m2,m3)
-     ==> (h2 o h1,k2 o k1) IN BIG_MODULE_HOM (m1,m3)`,
-  REWRITE_TAC[IN_BIG_MODULE_HOM] THEN REPEAT STRIP_TAC THEN
+     (h1,k1) IN BIG_DBMODULE_HOM (m1,m2) /\ (h2,k2) IN BIG_DBMODULE_HOM (m2,m3)
+     ==> (h2 o h1,k2 o k1) IN BIG_DBMODULE_HOM (m1,m3)`,
+  REWRITE_TAC[IN_BIG_DBMODULE_HOM] THEN REPEAT STRIP_TAC THEN
   ASM_REWRITE_TAC[o_THM; o_ASSOC] THEN ASM_MESON_TAC[DBMONAD_HOM_o]);;
 
-let SMALL_MODULE = prove
+let SMALL_DBMODULE = prove
  (`!m1:(A,M)dbmodule m2:(A,N)dbmodule h:M->N.
-     h IN MODULE_HOM (m1,m2) <=>
+     h IN DBMODULE_HOM (m1,m2) <=>
      DBBASE m1 = DBBASE m2 /\
-     (I,h) IN BIG_MODULE_HOM (m1,m2)`,
-  REWRITE_TAC[MODULE_HOM_CLAUSES; IN_BIG_MODULE_HOM; I_O_ID] THEN
+     (I,h) IN BIG_DBMODULE_HOM (m1,m2)`,
+  REWRITE_TAC[IN_DBMODULE_HOM; IN_BIG_DBMODULE_HOM; I_O_ID] THEN
   MESON_TAC[DBMONAD_HOM_ID]);;
 
-let SELF_MODULE_HOM = prove
+let SELF_DBMODULE_HOM = prove
  (`!m1 m2 h:A->B.
      h IN DBMONAD_HOM (m1,m2)
-     ==> (h,h) IN BIG_MODULE_HOM (SELF_DBMODULE m1, SELF_DBMODULE m2)`,
+     ==> (h,h) IN BIG_DBMODULE_HOM (SELF_DBMODULE m1, SELF_DBMODULE m2)`,
   REPEAT GEN_TAC THEN
-  REWRITE_TAC[IN_DBMONAD_HOM; IN_BIG_MODULE_HOM; SELF_DBMODULE_CLAUSES] THEN
+  REWRITE_TAC[IN_DBMONAD_HOM; IN_BIG_DBMODULE_HOM; SELF_DBMODULE_CLAUSES] THEN
   STRIP_TAC THEN ASM_REWRITE_TAC[]);;
 
-let BIG_MODULE_HOM_ALT = prove
+let BIG_DBMODULE_HOM_ALT = prove
  (`!m1 m2 h:A->B k:M->N.
-     (h,k) IN BIG_MODULE_HOM (m1,m2) <=>
+     (h,k) IN BIG_DBMODULE_HOM (m1,m2) <=>
      h IN DBMONAD_HOM (DBBASE m1,DBBASE m2) /\
-     k IN MODULE_HOM (m1,PULLBACK_DBMODULE (DBBASE m1) h m2)`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[IN_BIG_MODULE_HOM; MODULE_HOM_CLAUSES] THEN
+     k IN DBMODULE_HOM (m1,PULLBACK_DBMODULE (DBBASE m1) h m2)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[IN_BIG_DBMODULE_HOM; IN_DBMODULE_HOM] THEN
   ASM_CASES_TAC `h:A->B IN DBMONAD_HOM
     (DBBASE (m1:(A,M)dbmodule),DBBASE (m2:(B,N)dbmodule))` THEN
   ASM_SIMP_TAC[PULLBACK_DBMODULE_CLAUSES]);;

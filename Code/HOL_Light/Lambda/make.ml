@@ -19,7 +19,6 @@ loadt "Lambda/dblambda.ml";;            (* Lambda calculus                  *)
 loadt "Lambda/new_dbmonad.ml";;         (* dB-monads                        *)
 loadt "Lambda/new_dbmodule.ml";;        (* dB-modules                       *)
 loadt "Lambda/dblambda_initial.ml";;    (* Lambda calculus initial          *)
-(* loadt "Lambda/transition.ml";; *)    (* Transition monad for cbv         *)
 
 (* OLD STUFF *)
 (*

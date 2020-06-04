@@ -164,7 +164,7 @@ let MODULE_DEF = new_definition
                        (!x. mop (DBUNIT op) x = x) /\
                        (!f g x. mop g (mop f x) = mop (op g o f) x)`;;
 
-let SELF_MODULE = prove
+let SELF_DBMODULE = prove
  (`!op:(num->A)->A->A. MODULE op op <=> DBMONAD op`,
   REWRITE_TAC[DBMONAD; MODULE_DEF; o_DEF] THEN MESON_TAC[]);;
 
@@ -194,7 +194,7 @@ let PBMOP = new_definition
   `!op':(num->A')->A'->A' op:(num->A)->A->A h:A'->A mop:(num->A)->M->M f.
      PBMOP op' op h mop f = mop (h o f)`;;
 
-let PB_MODULE = prove
+let PB_DBMODULE = prove
  (`!op' op h:A'->A mop:(num->A)->M->M.
       DBMONAD_MOR op' op h /\ MODULE op mop
       ==> MODULE op' (PBMOP op' op h mop)`,

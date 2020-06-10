@@ -102,8 +102,7 @@ let REINDEX_EXTENS_EQ = prove
     (fun th -> MESON_TAC[th; REINDEX_EXTENS]) THEN
   DBLAMBDA_INDUCT_TAC THEN
   REWRITE_TAC[REINDEX; injectivity "dblambda"; FREES_INVERSION] THEN
-  SIMP_TAC[] THENL
-  [ASM_MESON_TAC[]; REPEAT STRIP_TAC] THEN
+  SIMP_TAC[] THENL [ASM_MESON_TAC[]; REPEAT STRIP_TAC] THEN
   SUBGOAL_THEN `SLIDE f (SUC i) = SLIDE g (SUC i)` MP_TAC THENL
   [FIRST_X_ASSUM MATCH_MP_TAC THEN ASM_REWRITE_TAC[ETA_AX];
    REWRITE_TAC[SLIDE; SUC_INJ]]);;
@@ -303,7 +302,7 @@ let SUBST1_EQ_SUBST = prove
  (`!t u. SUBST1 u t = SUBST (PUSHENV u REF) t`,
   REPEAT GEN_TAC THEN
   REWRITE_TAC[SUBST1; SUBSTI1_EQ_SUBST; SUBST_EXTENS; ITER] THEN
-  GEN_TAC THEN DISCH_TAC THEN CASES_TAC `i:num` THEN
+  CASES_GEN_TAC THEN
   REWRITE_TAC[PUSHENV; NOT_SUC; injectivity "dblambda"] THEN ARITH_TAC);;
 
 let SUBST1_SUBST1 = prove
@@ -457,14 +456,13 @@ let DBLAMBDA_RED_RULES =
                 ==> DBLAMBDA_RED R x z)`;;
 
 let DBLAMBDA_RED_CASES = prove
- (`!a0 a1.
-      DBLAMBDA_RED R a0 a1 <=>
-      R a0 a1 \/
-      (?x1 y1 x2 y2.
-         a0 = APP x1 x2 /\ a1 = APP y1 y2 /\
-         DBLAMBDA_RED R x1 y1 /\ DBLAMBDA_RED R x2 y2) \/
-      (?x y. a0 = ABS x /\ a1 = ABS y /\ DBLAMBDA_RED R x y) \/
-      (?y. DBLAMBDA_RED R a0 y /\ DBLAMBDA_RED R y a1)`,
+ (`!x y. DBLAMBDA_RED R x y <=>
+         R x y \/
+         (?x1 y1 x2 y2.
+            x = APP x1 x2 /\ y = APP y1 y2 /\
+            DBLAMBDA_RED R x1 y1 /\ DBLAMBDA_RED R x2 y2) \/
+         (?x' y'. x = ABS x' /\ y = ABS y' /\ DBLAMBDA_RED R x' y') \/
+         (?z. DBLAMBDA_RED R x z /\ DBLAMBDA_RED R z y)`,
   REPEAT GEN_TAC THEN EQ_TAC THENL
   [REWRITE_TAC[DBLAMBDA_RED] THEN MESON_TAC[RTC_CASES; RTC_RULES];
    MESON_TAC[DBLAMBDA_RED_RULES]]);;
@@ -476,7 +474,7 @@ let DBLAMBDA_RED_INDUCT = prove
           (!x y. RR x y ==> RR (ABS x) (ABS y)) /\
           (!x. RR x x) /\
           (!x y z. RR x y /\ RR y z ==> RR x z)
-          ==> (!a0 a1. DBLAMBDA_RED R a0 a1 ==> RR a0 a1)`,
+          ==> (!x y. DBLAMBDA_RED R x y ==> RR x y)`,
   GEN_TAC THEN GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[DBLAMBDA_RED] THEN
   MATCH_MP_TAC RTC_INDUCT THEN CONJ_TAC THEN
   TRY (MATCH_MP_TAC DBLAMBDA_CONG_INDUCT) THEN ASM_MESON_TAC[]);;
@@ -496,6 +494,114 @@ let DBLAMBDA_RED_SUBST = prove
   GEN_TAC THEN REWRITE_TAC[IMP_CONJ; RIGHT_FORALL_IMP_THM; DBLAMBDA_RED] THEN
   DISCH_TAC THEN MATCH_MP_TAC RTC_INDUCT THEN
   ASM_MESON_TAC[RTC_RULES; DBLAMBDA_CONG_SUBST]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Beta reduction binary relation.                                           *)
+(* ------------------------------------------------------------------------- *)
+
+let BETARED = new_definition
+  `BETARED = DBLAMBDA_RED DBLAMBDA_BETA`;;
+
+let BETARED_BETA = prove
+ (`!x y. DBLAMBDA_BETA x y ==> BETARED x y`,
+  SIMP_TAC[BETARED; DBLAMBDA_RED_INC]);;
+
+let BETARED_ABS = prove
+ (`!x y. BETARED x y ==> BETARED (ABS x) (ABS y)`,
+  SIMP_TAC[BETARED; DBLAMBDA_RED_ABS]);;
+
+let BETARED_APP = prove
+ (`!x1 y1 x2 y2. BETARED x1 y1 /\ BETARED x2 y2
+                 ==> BETARED (APP x1 x2) (APP y1 y2)`,
+  SIMP_TAC[BETARED; DBLAMBDA_RED_APP]);;
+
+let BETARED_REFL = prove
+ (`!x. BETARED x x`,
+  REWRITE_TAC[BETARED; DBLAMBDA_RED_REFL]);;
+
+let BETARED_TRANS = prove
+ (`!x y z. BETARED x y /\ BETARED y z ==> BETARED x z`,
+  REWRITE_TAC[BETARED; DBLAMBDA_RED_TRANS]);;
+
+let BETARED_RULES = prove
+ (`(!x y. DBLAMBDA_BETA x y ==> BETARED x y) /\
+   (!x1 y1 x2 y2. BETARED x1 y1 /\ BETARED x2 y2
+                  ==> BETARED (APP x1 x2) (APP y1 y2)) /\
+   (!x y. BETARED x y ==> BETARED (ABS x) (ABS y)) /\
+   (!x. BETARED x x) /\
+   (!x y z. BETARED x y /\ BETARED y z ==> BETARED x z)`,
+  REWRITE_TAC[BETARED_REFL; BETARED_BETA; BETARED_ABS; BETARED_APP] THEN
+  MESON_TAC[BETARED_TRANS]);;
+
+let BETARED_INDUCT = prove
+ (`!R. (!x y. DBLAMBDA_BETA x y ==> R x y) /\
+       (!x1 y1 x2 y2. R x1 y1 /\ R x2 y2 ==> R (APP x1 x2) (APP y1 y2)) /\
+       (!x y. R x y ==> R (ABS x) (ABS y)) /\
+       (!x. R x x) /\
+       (!x y z. R x y /\ R y z ==> R x z)
+       ==> (!x y. BETARED x y ==> R x y)`,
+  GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[BETARED; DBLAMBDA_RED] THEN
+  MATCH_MP_TAC RTC_INDUCT THEN ASM_REWRITE_TAC[] THEN
+  MATCH_MP_TAC DBLAMBDA_CONG_INDUCT THEN ASM_MESON_TAC[]);;
+
+let BETARED_CASES = prove
+ (`!x y. BETARED x y <=>
+         DBLAMBDA_BETA x y \/
+         (?x1 y1 x2 y2.
+            x = APP x1 x2 /\ y = APP y1 y2 /\
+            BETARED x1 y1 /\ BETARED x2 y2) \/
+         (?x' y'. x = ABS x' /\ y = ABS y' /\ BETARED x' y') \/
+         (?z. BETARED x z /\ BETARED z y)`,
+  REPEAT GEN_TAC THEN EQ_TAC THENL
+  [REWRITE_TAC[BETARED] THEN
+   GEN_REWRITE_TAC LAND_CONV [DBLAMBDA_RED_CASES] THEN
+   REWRITE_TAC[] THEN STRIP_TAC THEN
+   ASM_REWRITE_TAC[injectivity "dblambda"] THEN ASM_MESON_TAC[];
+   ASM_MESON_TAC[BETARED_RULES]]);;
+
+let BETARED_REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i)
+           ==> BETARED (REINDEX f x)  (REINDEX g x)`,
+  DBLAMBDA_INDUCT_TAC THEN REWRITE_TAC[REINDEX; FREES_INVERSION] THENL
+  [MESON_TAC[BETARED_REFL];
+   ASM_MESON_TAC[BETARED_APP];
+   REPEAT STRIP_TAC THEN MATCH_MP_TAC BETARED_ABS THEN
+   FIRST_X_ASSUM MATCH_MP_TAC THEN NUM_CASES_TAC THEN
+   ASM_REWRITE_TAC[SLIDE; SUC_INJ]]);;
+
+let BETARED_REINDEX = prove
+ (`!x y f. BETARED x y ==> BETARED (REINDEX f x) (REINDEX f y)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[BETARED; DBLAMBDA_RED] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN ASM_REWRITE_TAC[] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_CONG_REINDEX THEN
+  ASM_REWRITE_TAC[] THEN
+  MESON_TAC[DBLAMBDA_BETA_REINDEX; DBLAMBDA_ETA_REINDEX]);;
+
+let BETARED_SUBST = prove
+ (`!x y f. BETARED x y ==> BETARED (SUBST f x) (SUBST f y)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[BETARED; DBLAMBDA_RED] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN ASM_REWRITE_TAC[] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_CONG_SUBST THEN
+  ASM_REWRITE_TAC[] THEN MESON_TAC[DBLAMBDA_BETA_SUBST; DBLAMBDA_ETA_SUBST]);;
+
+let BETARED_REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i)
+           ==> BETARED (REINDEX f x) (REINDEX g x)`,
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[REINDEX; FREES_INVERSION; FORALL_UNWIND_THM2] THEN
+  ASM_SIMP_TAC[BETARED_RULES] THEN REPEAT STRIP_TAC THEN
+  MATCH_MP_TAC BETARED_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[SLIDE] THEN ASM_MESON_TAC[]);;
+
+let BETARED_SUBST_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> BETARED (f i) (g i))
+           ==> BETARED (SUBST f x) (SUBST g x)`,
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[SUBST; FREES_INVERSION; FORALL_UNWIND_THM2] THEN
+  ASM_SIMP_TAC[BETARED_APP] THEN REPEAT STRIP_TAC THEN
+  MATCH_MP_TAC BETARED_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV; BETARED_REFL] THEN
+  ASM_MESON_TAC[BETARED_REINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Beta-eta reduction binary relation.                                       *)
@@ -548,21 +654,20 @@ let BETAETARED_INDUCT = prove
        (!x y. R x y ==> R (ABS x) (ABS y)) /\
        (!x. R x x) /\
        (!x y z. R x y /\ R y z ==> R x z)
-       ==> (!a0 a1. BETAETARED a0 a1 ==> R a0 a1)`,
+       ==> (!x y. BETAETARED x y ==> R x y)`,
   GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[BETAETARED; DBLAMBDA_RED] THEN
   MATCH_MP_TAC RTC_INDUCT THEN ASM_REWRITE_TAC[] THEN
   MATCH_MP_TAC DBLAMBDA_CONG_INDUCT THEN ASM_MESON_TAC[]);;
 
 let BETAETARED_CASES = prove
- (`!a0 a1.
-     BETAETARED a0 a1 <=>
-     DBLAMBDA_BETA a0 a1 \/
-     DBLAMBDA_ETA a0 a1 \/
-     (?x1 y1 x2 y2.
-        a0 = APP x1 x2 /\ a1 = APP y1 y2 /\
-        BETAETARED x1 y1 /\ BETAETARED x2 y2) \/
-     (?x y. a0 = ABS x /\ a1 = ABS y /\ BETAETARED x y) \/
-     (?y. BETAETARED a0 y /\ BETAETARED y a1)`,
+ (`!x y. BETAETARED x y <=>
+         DBLAMBDA_BETA x y \/
+         DBLAMBDA_ETA x y \/
+         (?x1 y1 x2 y2.
+            x = APP x1 x2 /\ y = APP y1 y2 /\
+            BETAETARED x1 y1 /\ BETAETARED x2 y2) \/
+         (?x' y'. x = ABS x' /\ y = ABS y' /\ BETAETARED x' y') \/
+         (?z. BETAETARED x z /\ BETAETARED z y)`,
   REPEAT GEN_TAC THEN EQ_TAC THENL
   [REWRITE_TAC[BETAETARED] THEN
    GEN_REWRITE_TAC LAND_CONV [DBLAMBDA_RED_CASES] THEN
@@ -583,17 +688,15 @@ let BETAETARED_REINDEX_EXTENS = prove
 let BETAETARED_REINDEX = prove
  (`!x y f. BETAETARED x y ==> BETAETARED (REINDEX f x) (REINDEX f y)`,
   REPEAT GEN_TAC THEN REWRITE_TAC[BETAETARED; DBLAMBDA_RED] THEN
-  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN
-  ASM_REWRITE_TAC[] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN ASM_REWRITE_TAC[] THEN
   REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_CONG_REINDEX THEN
   ASM_REWRITE_TAC[] THEN
-  MESON_TAC[DBLAMBDA_BETA_REINDEX; DBLAMBDA_ETA_REINDEX]);;
+ MESON_TAC[DBLAMBDA_BETA_REINDEX; DBLAMBDA_ETA_REINDEX]);;
 
 let BETAETARED_SUBST = prove
  (`!x y f. BETAETARED x y ==> BETAETARED (SUBST f x) (SUBST f y)`,
   REPEAT GEN_TAC THEN REWRITE_TAC[BETAETARED; DBLAMBDA_RED] THEN
-  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN
-  ASM_REWRITE_TAC[] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN ASM_REWRITE_TAC[] THEN
   REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_CONG_SUBST THEN
   ASM_REWRITE_TAC[] THEN
   MESON_TAC[DBLAMBDA_BETA_SUBST; DBLAMBDA_ETA_SUBST]);;
@@ -676,15 +779,14 @@ let DBLAMBDA_EQV_RULES =
                 ==> DBLAMBDA_EQV R x z)`;;
 
 let DBLAMBDA_EQV_CASES = prove
- (`!a0 a1.
-      DBLAMBDA_EQV R a0 a1 <=>
-      R a0 a1 \/
-      (?x1 y1 x2 y2.
-         a0 = APP x1 x2 /\ a1 = APP y1 y2 /\
-         DBLAMBDA_EQV R x1 y1 /\ DBLAMBDA_EQV R x2 y2) \/
-      (?x y. a0 = ABS x /\ a1 = ABS y /\ DBLAMBDA_EQV R x y) \/
-      DBLAMBDA_EQV R a1 a0 \/
-      (?y. DBLAMBDA_EQV R a0 y /\ DBLAMBDA_EQV R y a1)`,
+ (`!x y. DBLAMBDA_EQV R x y <=>
+         R x y \/
+         (?x1 y1 x2 y2.
+            x = APP x1 x2 /\ y = APP y1 y2 /\
+            DBLAMBDA_EQV R x1 y1 /\ DBLAMBDA_EQV R x2 y2) \/
+         (?x' y'. x = ABS x' /\ y = ABS y' /\ DBLAMBDA_EQV R x' y') \/
+         DBLAMBDA_EQV R y x \/
+         (?z. DBLAMBDA_EQV R x z /\ DBLAMBDA_EQV R z y)`,
   REPEAT GEN_TAC THEN EQ_TAC THENL
   [REWRITE_TAC[DBLAMBDA_EQV] THEN MESON_TAC[RSTC_CASES; RSTC_RULES];
    MESON_TAC[DBLAMBDA_EQV_RULES]]);;
@@ -697,7 +799,7 @@ let DBLAMBDA_EQV_INDUCT = prove
           (!x. RR x x) /\
           (!x y. RR x y ==> RR y x) /\
           (!x y z. RR x y /\ RR y z ==> RR x z)
-          ==> (!a0 a1. DBLAMBDA_EQV R a0 a1 ==> RR a0 a1)`,
+          ==> (!x y. DBLAMBDA_EQV R x y ==> RR x y)`,
   GEN_TAC THEN GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[DBLAMBDA_EQV] THEN
   MATCH_MP_TAC RSTC_INDUCT THEN CONJ_TAC THEN
   TRY (MATCH_MP_TAC DBLAMBDA_CONG_INDUCT) THEN ASM_MESON_TAC[]);;

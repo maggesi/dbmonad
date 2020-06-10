@@ -318,6 +318,53 @@ let SUBST1_SUBST1 = prove
    REWRITE_TAC[injectivity "dblambda"] THEN ARITH_TAC]);;
 
 (* ------------------------------------------------------------------------- *)
+(*  DBLAMBDA_BETA                                                            *)
+(* ------------------------------------------------------------------------- *)
+
+let DBLAMBDA_BETA_RULES, DBLAMBDA_BETA_INDUCT, DBLAMBDA_BETA_CASES =
+  new_inductive_definition
+  `!x y. DBLAMBDA_BETA (APP (ABS x) y) (SUBST (PUSHENV y REF) x)`;;
+
+let DBLAMBDA_BETA_INVERSION = prove
+ (`!x y z. DBLAMBDA_BETA (APP (ABS x) y) z <=> z = SUBST (PUSHENV y REF) x`,
+  REPEAT GEN_TAC THEN GEN_REWRITE_TAC LAND_CONV [DBLAMBDA_BETA_CASES] THEN
+  REWRITE_TAC[injectivity "dblambda"] THEN MESON_TAC[]);;
+
+let DBLAMBDA_BETA_SUBST = prove
+ (`!f x y. DBLAMBDA_BETA x y ==> DBLAMBDA_BETA (SUBST f x) (SUBST f y)`,
+  GEN_TAC THEN MATCH_MP_TAC DBLAMBDA_BETA_INDUCT THEN
+  REPEAT GEN_TAC THEN REWRITE_TAC[SUBST] THEN
+  REWRITE_TAC[DBLAMBDA_BETA_INVERSION; SUBST_SUBST; SUBST_EXTENS; o_THM] THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV; SUBST; PUSHENV] THEN
+  DISCH_THEN (K ALL_TAC) THEN REWRITE_TAC[SUBST_REINDEX] THEN
+  MATCH_MP_TAC EQ_SYM THEN REWRITE_TAC[SUBST_REF_EQ; o_THM; PUSHENV]);;
+
+let DBLAMBDA_BETA_REINDEX = prove
+ (`!f x y. DBLAMBDA_BETA x y ==> DBLAMBDA_BETA (REINDEX f x) (REINDEX f y)`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[REINDEX_EQ_SUBST] THEN
+  ASM_MESON_TAC[DBLAMBDA_BETA_SUBST]);;
+
+(* ------------------------------------------------------------------------- *)
+(*  DBLAMBDA_ETA                                                             *)
+(* ------------------------------------------------------------------------- *)
+
+let DBLAMBDA_ETA_RULES, DBLAMBDA_ETA_INDUCT, DBLAMBDA_ETA_CASES =
+  new_inductive_definition
+  `!x. DBLAMBDA_ETA (ABS (APP (REINDEX SUC x) (REF 0))) x`;;
+
+let DBLAMBDA_ETA_SUBST = prove
+ (`!f x y. DBLAMBDA_ETA x y ==> DBLAMBDA_ETA (SUBST f x) (SUBST f y)`,
+  GEN_TAC THEN MATCH_MP_TAC DBLAMBDA_ETA_INDUCT THEN GEN_TAC THEN
+  REWRITE_TAC[SUBST; DERIV; SUBST_REINDEX; DBLAMBDA_ETA_CASES; REINDEX_SUBST;
+              SUBST_EXTENS; o_THM; injectivity "dblambda"] THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV]);;
+
+let DBLAMBDA_ETA_REINDEX = prove
+ (`!f x y. DBLAMBDA_ETA x y ==> DBLAMBDA_ETA (REINDEX f x) (REINDEX f y)`,
+  REPEAT STRIP_TAC THEN REWRITE_TAC[REINDEX_EQ_SUBST] THEN
+  ASM_MESON_TAC[DBLAMBDA_ETA_SUBST]);;
+
+(* ------------------------------------------------------------------------- *)
 (* Structural congruence relation relation between lambda terms.             *)
 (* ------------------------------------------------------------------------- *)
 
@@ -449,6 +496,126 @@ let DBLAMBDA_RED_SUBST = prove
   GEN_TAC THEN REWRITE_TAC[IMP_CONJ; RIGHT_FORALL_IMP_THM; DBLAMBDA_RED] THEN
   DISCH_TAC THEN MATCH_MP_TAC RTC_INDUCT THEN
   ASM_MESON_TAC[RTC_RULES; DBLAMBDA_CONG_SUBST]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Beta-eta reduction binary relation.                                       *)
+(* ------------------------------------------------------------------------- *)
+
+let BETAETARED = new_definition
+  `BETAETARED = DBLAMBDA_RED (\x y. DBLAMBDA_BETA x y \/ DBLAMBDA_ETA x y)`;;
+
+let BETAETARED_BETA = prove
+ (`!x y. DBLAMBDA_BETA x y ==> BETAETARED x y`,
+  SIMP_TAC[BETAETARED; DBLAMBDA_RED_INC]);;
+
+let BETAETARED_ETA = prove
+ (`!x y. DBLAMBDA_ETA x y ==> BETAETARED x y`,
+  SIMP_TAC[BETAETARED; DBLAMBDA_RED_INC]);;
+
+let BETAETARED_ABS = prove
+ (`!x y. BETAETARED x y ==> BETAETARED (ABS x) (ABS y)`,
+  SIMP_TAC[BETAETARED; DBLAMBDA_RED_ABS]);;
+
+let BETAETARED_APP = prove
+ (`!x1 y1 x2 y2. BETAETARED x1 y1 /\ BETAETARED x2 y2
+                 ==> BETAETARED (APP x1 x2) (APP y1 y2)`,
+  SIMP_TAC[BETAETARED; DBLAMBDA_RED_APP]);;
+
+let BETAETARED_REFL = prove
+ (`!x. BETAETARED x x`,
+  REWRITE_TAC[BETAETARED; DBLAMBDA_RED_REFL]);;
+
+let BETAETARED_TRANS = prove
+ (`!x y z. BETAETARED x y /\ BETAETARED y z ==> BETAETARED x z`,
+  REWRITE_TAC[BETAETARED; DBLAMBDA_RED_TRANS]);;
+
+let BETAETARED_RULES = prove
+ (`(!x y. DBLAMBDA_BETA x y ==> BETAETARED x y) /\
+   (!x y. DBLAMBDA_ETA x y ==> BETAETARED x y) /\
+   (!x1 y1 x2 y2. BETAETARED x1 y1 /\ BETAETARED x2 y2
+                  ==> BETAETARED (APP x1 x2) (APP y1 y2)) /\
+   (!x y. BETAETARED x y ==> BETAETARED (ABS x) (ABS y)) /\
+   (!x. BETAETARED x x) /\
+   (!x y z. BETAETARED x y /\ BETAETARED y z ==> BETAETARED x z)`,
+  REWRITE_TAC[BETAETARED_REFL; BETAETARED_BETA; BETAETARED_ETA;
+              BETAETARED_ABS; BETAETARED_APP] THEN
+  MESON_TAC[BETAETARED_TRANS]);;
+
+let BETAETARED_INDUCT = prove
+ (`!R. (!x y. DBLAMBDA_BETA x y ==> R x y) /\
+       (!x y. DBLAMBDA_ETA x y ==> R x y) /\
+       (!x1 y1 x2 y2. R x1 y1 /\ R x2 y2 ==> R (APP x1 x2) (APP y1 y2)) /\
+       (!x y. R x y ==> R (ABS x) (ABS y)) /\
+       (!x. R x x) /\
+       (!x y z. R x y /\ R y z ==> R x z)
+       ==> (!a0 a1. BETAETARED a0 a1 ==> R a0 a1)`,
+  GEN_TAC THEN STRIP_TAC THEN REWRITE_TAC[BETAETARED; DBLAMBDA_RED] THEN
+  MATCH_MP_TAC RTC_INDUCT THEN ASM_REWRITE_TAC[] THEN
+  MATCH_MP_TAC DBLAMBDA_CONG_INDUCT THEN ASM_MESON_TAC[]);;
+
+let BETAETARED_CASES = prove
+ (`!a0 a1.
+     BETAETARED a0 a1 <=>
+     DBLAMBDA_BETA a0 a1 \/
+     DBLAMBDA_ETA a0 a1 \/
+     (?x1 y1 x2 y2.
+        a0 = APP x1 x2 /\ a1 = APP y1 y2 /\
+        BETAETARED x1 y1 /\ BETAETARED x2 y2) \/
+     (?x y. a0 = ABS x /\ a1 = ABS y /\ BETAETARED x y) \/
+     (?y. BETAETARED a0 y /\ BETAETARED y a1)`,
+  REPEAT GEN_TAC THEN EQ_TAC THENL
+  [REWRITE_TAC[BETAETARED] THEN
+   GEN_REWRITE_TAC LAND_CONV [DBLAMBDA_RED_CASES] THEN
+   REWRITE_TAC[] THEN STRIP_TAC THEN
+   ASM_REWRITE_TAC[injectivity "dblambda"] THEN ASM_MESON_TAC[];
+   ASM_MESON_TAC[BETAETARED_RULES]]);;
+
+let BETAETARED_REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i)
+           ==> BETAETARED (REINDEX f x)  (REINDEX g x)`,
+  DBLAMBDA_INDUCT_TAC THEN REWRITE_TAC[REINDEX; FREES_INVERSION] THENL
+  [MESON_TAC[BETAETARED_REFL];
+   ASM_MESON_TAC[BETAETARED_APP];
+   REPEAT STRIP_TAC THEN MATCH_MP_TAC BETAETARED_ABS THEN
+   FIRST_X_ASSUM MATCH_MP_TAC THEN NUM_CASES_TAC THEN
+   ASM_REWRITE_TAC[SLIDE; SUC_INJ]]);;
+
+let BETAETARED_REINDEX = prove
+ (`!x y f. BETAETARED x y ==> BETAETARED (REINDEX f x) (REINDEX f y)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[BETAETARED; DBLAMBDA_RED] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN
+  ASM_REWRITE_TAC[] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_CONG_REINDEX THEN
+  ASM_REWRITE_TAC[] THEN
+  MESON_TAC[DBLAMBDA_BETA_REINDEX; DBLAMBDA_ETA_REINDEX]);;
+
+let BETAETARED_SUBST = prove
+ (`!x y f. BETAETARED x y ==> BETAETARED (SUBST f x) (SUBST f y)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[BETAETARED; DBLAMBDA_RED] THEN
+  DISCH_TAC THEN MATCH_MP_TAC RTC_MAP THEN
+  ASM_REWRITE_TAC[] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_CONG_SUBST THEN
+  ASM_REWRITE_TAC[] THEN
+  MESON_TAC[DBLAMBDA_BETA_SUBST; DBLAMBDA_ETA_SUBST]);;
+
+let BETAETARED_REINDEX_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> f i = g i)
+           ==> BETAETARED (REINDEX f x) (REINDEX g x)`,
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[REINDEX; FREES_INVERSION; FORALL_UNWIND_THM2] THEN
+  ASM_SIMP_TAC[BETAETARED_RULES] THEN REPEAT STRIP_TAC THEN
+  MATCH_MP_TAC BETAETARED_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[SLIDE] THEN ASM_MESON_TAC[]);;
+
+let BETAETARED_SUBST_EXTENS = prove
+ (`!x f g. (!i. i IN FREES x ==> BETAETARED (f i) (g i))
+           ==> BETAETARED (SUBST f x) (SUBST g x)`,
+  DBLAMBDA_INDUCT_TAC THEN
+  REWRITE_TAC[SUBST; FREES_INVERSION; FORALL_UNWIND_THM2] THEN
+  ASM_SIMP_TAC[BETAETARED_APP] THEN REPEAT STRIP_TAC THEN
+  MATCH_MP_TAC BETAETARED_ABS THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  NUM_CASES_TAC THEN REWRITE_TAC[DERIV; BETAETARED_REFL] THEN
+  ASM_MESON_TAC[BETAETARED_REINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Structural equivalence relation between lambda terms.                     *)

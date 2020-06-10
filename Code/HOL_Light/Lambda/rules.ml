@@ -49,17 +49,17 @@ let RED_INDUCT_ALT = prove
   CONV_TAC (ONCE_DEPTH_CONV let_CONV) THEN MESON_TAC[]);;
 
 let RED_IMP_LC_REL = prove
- (`!x y r. RED (x,y,r) ==> REDREL x y`,
-  MATCH_MP_TAC RED_INDUCT_ALT THEN REWRITE_TAC[REDREL_RULES] THEN
+ (`!x y r. RED (x,y,r) ==> BETAETARED x y`,
+  MATCH_MP_TAC RED_INDUCT_ALT THEN REWRITE_TAC[BETAETARED_RULES] THEN
   CONJ_TAC THEN REPEAT GEN_TAC THENL
-  [MATCH_MP_TAC REDREL_BETA; MATCH_MP_TAC REDREL_ETA] THEN
+  [MATCH_MP_TAC BETAETARED_BETA; MATCH_MP_TAC BETAETARED_ETA] THEN
   REWRITE_TAC[DBLAMBDA_BETA_RULES; DBLAMBDA_ETA_RULES]);;
 
-let REDREL_EQ_RED = prove
- (`!x y. REDREL x y <=> ?r. RED (x,y,r)`,
-  SUBGOAL_THEN `!x y. REDREL x y ==> ?r. RED (x,y,r)`
+let BETAETARED_EQ_RED = prove
+ (`!x y. BETAETARED x y <=> ?r. RED (x,y,r)`,
+  SUBGOAL_THEN `!x y. BETAETARED x y ==> ?r. RED (x,y,r)`
    (fun th -> MESON_TAC[th; RED_IMP_LC_REL]) THEN
-  MATCH_MP_TAC REDREL_INDUCT THEN CONJ_TAC THENL
+  MATCH_MP_TAC BETAETARED_INDUCT THEN CONJ_TAC THENL
   [MATCH_MP_TAC DBLAMBDA_BETA_INDUCT THEN GEN_TAC THEN GEN_TAC THEN
    EXISTS_TAC `LCREL_BETA x y` THEN REWRITE_TAC[RED_RULES];
    ALL_TAC] THEN
@@ -196,7 +196,7 @@ let SBMODULE_MOR_RED2 = prove
   REWRITE_TAC[SBMODULE_MOR; SBMODULE_RSUBST; SBMODULE_SUBST; SUBST_RED2]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Reduction SBMODULE.                                                         *)
+(* Reduction module.                                                         *)
 (* ------------------------------------------------------------------------- *)
 
 let red_tybij =
@@ -285,7 +285,8 @@ let RED_SUBST = prove
 let TSUBST_TSUBST = prove
  (`!f g t. TSUBST f (TSUBST g t) = TSUBST (SUBST f o g) t`,
   GEN_TAC THEN GEN_TAC THEN MATCH_MP_TAC FORALL_RED_THM_IMP THEN
-  SIMP_TAC[FORALL_PAIR_THM; TSUBST_MK_RED; RED_SUBST; SUBST_SUBST; RSUBST_SUBST]);;
+  SIMP_TAC[FORALL_PAIR_THM; TSUBST_MK_RED; RED_SUBST;
+           SUBST_SUBST; RSUBST_SUBST]);;
 
 let TSUBST_REF = prove
  (`!t. TSUBST REF t = t`,

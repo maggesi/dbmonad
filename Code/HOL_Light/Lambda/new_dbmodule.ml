@@ -142,8 +142,8 @@ let DBMODULE_PRODUCT_CLAUSES = prove
          (!f x y. DBMBIND (DBMODULE_PRODUCT(l,m)) f (x,y) =
                   (DBMBIND l f x, DBMBIND m f y))`,
   INTRO_TAC "!l m; infty dbase_eq" THEN
-  C SUBGOAL_THEN
-    (fun th -> SIMP_TAC[DBMODULE_PRODUCT; DBBASE_MK_DBMODULE; DBMBIND_MK_DBMODULE; th])
+  C SUBGOAL_THEN (fun th ->
+      SIMP_TAC[DBMODULE_PRODUCT; DBBASE_MK_DBMODULE; DBMBIND_MK_DBMODULE; th])
     `IS_DBMODULE (DBBASE l,
                   (\f (x,y). (DBMBIND (l:(A,B)dbmodule) f x,
                               DBMBIND (m:(A,C)dbmodule) f y)))` THEN

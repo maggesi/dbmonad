@@ -187,7 +187,7 @@ let SBMODULE_MOR_o = prove
   ASM_REWRITE_TAC[o_DEF]);;
 
 (* ------------------------------------------------------------------------- *)
-(*  Pull-back SBMODULEs.                                                       *)
+(*  Pull-back module.                                                        *)
 (* ------------------------------------------------------------------------- *)
 
 let PBMOP = new_definition
@@ -202,7 +202,7 @@ let PB_SBMODULE = prove
   ASM_REWRITE_TAC[o_DEF; ETA_AX]);;
 
 (* ------------------------------------------------------------------------- *)
-(*  Derived SBMODULEs.                                                         *)
+(*  Derived module.                                                          *)
 (* ------------------------------------------------------------------------- *)
 
 let SBDERIV = new_recursive_definition num_RECURSION

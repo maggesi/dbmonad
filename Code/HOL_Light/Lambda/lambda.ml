@@ -121,7 +121,7 @@ let LC_SUBST = prove
 let LC_APP0_DEF, LC_APP0 = lc_lift_function "LC_APP0" LC_REL_APP0;;
 
 (* ------------------------------------------------------------------------- *)
-(*  Operadic properties of LC_SUBST.                                        *)
+(*  Monadic properties of LC_SUBST.                                          *)
 (* ------------------------------------------------------------------------- *)
 
 let LC_SUBST_LUNIT = prove

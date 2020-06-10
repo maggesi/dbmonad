@@ -10,7 +10,7 @@
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
-(* Type for lambda terms using de Bruijn notation.                           *)
+(* Datatype for lambda terms using de Bruijn encoding.                       *)
 (* ------------------------------------------------------------------------- *)
 
 let dblambda_INDUCT, dblambda_RECURSION = define_type
@@ -19,7 +19,7 @@ let dblambda_INDUCT, dblambda_RECURSION = define_type
             | ABS dblambda";;
 
 (* ------------------------------------------------------------------------- *)
-(* Handy tactics for induction and case analysis.                            *)
+(* Handy tactics for induction and case analysis on lambda terms.            *)
 (* ------------------------------------------------------------------------- *)
 
 let DBLAMBDA_INDUCT_TAC =
@@ -28,7 +28,7 @@ let DBLAMBDA_INDUCT_TAC =
    [GEN_TAC THEN DISCH_THEN (CONJUNCTS_THEN ASSUME_TAC); DISCH_TAC]];;
 
 (* ------------------------------------------------------------------------- *)
-(* Free references.                                                          *)
+(* Free references occurring in a lambda term.                               *)
 (* ------------------------------------------------------------------------- *)
 
 let FREES_RULES,FREES_INDUCT,FREES_CASES = new_inductive_set
@@ -53,7 +53,7 @@ let FREES_CLAUSES = prove
   GEN_REWRITE_TAC LAND_CONV [FREES_INVERSION] THEN SET_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Slide.                                                                    *)
+(* Slide operator (needed for the reindexing operator right below).          *)
 (* ------------------------------------------------------------------------- *)
 
 let SLIDE = new_recursive_definition num_RECURSION
@@ -74,7 +74,7 @@ let SLIDE_INJ = prove
   REWRITE_TAC[SLIDE; NOT_SUC; SUC_INJ] THEN MESON_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Reindexing.                                                               *)
+(* Reindexing operator (functoriality).                                      *)
 (* ------------------------------------------------------------------------- *)
 
 let REINDEX = new_recursive_definition dblambda_RECURSION
@@ -129,7 +129,7 @@ let REINDEX_INJ = prove
   ASM_MESON_TAC[SLIDE_INJ]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Derivation.                                                               *)
+(* Derivation operator (needed for the substitution right next).             *)
 (* ------------------------------------------------------------------------- *)
 
 let DERIV = new_recursive_definition num_RECURSION
@@ -155,7 +155,7 @@ let DERIV_O_SUC = prove
   REWRITE_TAC[FUN_EQ_THM; o_THM; DERIV]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Parallel substitution (higher-order style).                               *)
+(* Parallel capture-avoiding substitution (higher-order style).              *)
 (* ------------------------------------------------------------------------- *)
 
 let SUBST = new_recursive_definition dblambda_RECURSION
@@ -221,7 +221,7 @@ let REINDEX_EQ_SUBST = prove
   REWRITE_TAC[o_THM; DERIV; SLIDE; REINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Classical definition of linear substitution.                              *)
+(* Classical definition of linear (capture-avoiding) substitution.           *)
 (* ------------------------------------------------------------------------- *)
 
 let SHIFTI = new_recursive_definition dblambda_RECURSION
@@ -318,7 +318,7 @@ let SUBST1_SUBST1 = prove
    REWRITE_TAC[injectivity "dblambda"] THEN ARITH_TAC]);;
 
 (* ------------------------------------------------------------------------- *)
-(*  DBLAMBDA_BETA                                                            *)
+(*  Beta reduction rule.                                                     *)
 (* ------------------------------------------------------------------------- *)
 
 let DBLAMBDA_BETA_RULES, DBLAMBDA_BETA_INDUCT, DBLAMBDA_BETA_CASES =
@@ -345,7 +345,7 @@ let DBLAMBDA_BETA_REINDEX = prove
   ASM_MESON_TAC[DBLAMBDA_BETA_SUBST]);;
 
 (* ------------------------------------------------------------------------- *)
-(*  DBLAMBDA_ETA                                                             *)
+(*  Eta reduction rule.                                                      *)
 (* ------------------------------------------------------------------------- *)
 
 let DBLAMBDA_ETA_RULES, DBLAMBDA_ETA_INDUCT, DBLAMBDA_ETA_CASES =
@@ -365,7 +365,7 @@ let DBLAMBDA_ETA_REINDEX = prove
   ASM_MESON_TAC[DBLAMBDA_ETA_SUBST]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Structural congruence relation relation between lambda terms.             *)
+(* Structural congruence relation for lambda terms.                          *)
 (* ------------------------------------------------------------------------- *)
 
 let DBLAMBDA_CONG_RULES, DBLAMBDA_CONG_INDUCT, DBLAMBDA_CONG_CASES =
@@ -402,7 +402,7 @@ let DBLAMBDA_CONG_SUBST = prove
   ASM_SIMP_TAC[DBLAMBDA_CONG_RULES]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Structural reduction relation between lambda terms.                       *)
+(* Structural reduction relation for lambda terms.                           *)
 (* ------------------------------------------------------------------------- *)
 
 needs "Library/rstc.ml";;
@@ -618,7 +618,7 @@ let BETAETARED_SUBST_EXTENS = prove
   ASM_MESON_TAC[BETAETARED_REINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Structural equivalence relation between lambda terms.                     *)
+(* Structural equivalence relation for lambda terms.                         *)
 (* ------------------------------------------------------------------------- *)
 
 let DBLAMBDA_EQV = new_definition

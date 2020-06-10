@@ -23,7 +23,7 @@ let RED_RULES,RED_INDUCT,RED_CASES = new_inductive_definition
    (!x1 x2 y1 y2 r1 r2. RED (x1,y1,r1) /\ RED (x2,y2,r2)
       ==> RED (APP x1 x2, APP y1 y2, LCREL_APP r1 r2)) /\
    (!x y r. RED (x,y,r) ==> RED (ABS x, ABS y, LCREL_ABS r)) /\
-   (!x y. RED (APP (ABS x) y, SUBST (PUSHENV y REF) x, LCREL_BETA x y)) /\
+   (!x y. RED (APP (ABS x) y, SUBST1 y x, LCREL_BETA x y)) /\
    (!x. RED (ABS (APP (REINDEX SUC x) (REF 0)), x, LCREL_ETA x))`;;
 
 let [RED_REFL;RED_TRANS;RED_APP;RED_ABS;RED_BETA;RED_ETA] =
@@ -38,7 +38,7 @@ let RED_INDUCT_ALT = prove
             ==> P (APP x1 x2) (APP y1 y2) (LCREL_APP r1 r2)) /\
        (!x y r. P x y r ==> P (ABS x) (ABS y) (LCREL_ABS r)) /\
        (!x y.
-            P (APP (ABS x) y) (SUBST (PUSHENV y REF) x) (LCREL_BETA x y)) /\
+            P (APP (ABS x) y) (SUBST1 y x) (LCREL_BETA x y)) /\
        (!x. P (ABS (APP (REINDEX SUC x) (REF 0))) x (LCREL_ETA x))
        ==> (!x y r. RED (x,y,r) ==> P x y r)`,
   GEN_TAC THEN STRIP_TAC THEN
@@ -82,7 +82,7 @@ let RED2 = new_recursive_definition lcrel_RECUR
    (!r s. RED2 (LCREL_TRANS r s) = RED2 s) /\
    (!r s. RED2 (LCREL_APP r s) = APP (RED2 r) (RED2 s)) /\
    (!r. RED2 (LCREL_ABS r) = ABS (RED2 r)) /\
-   (!x y. RED2 (LCREL_BETA x y) = SUBST (PUSHENV y REF) x) /\
+   (!x y. RED2 (LCREL_BETA x y) = SUBST1 y x) /\
    (!x. RED2 (LCREL_ETA x) = x)`;;
 
 let RED_PROJECTIONS = prove
@@ -170,7 +170,8 @@ let SUBST_RED1 = prove
 
 let SUBST_RED2 = prove
  (`!r f. SUBST f (RED2 r) = RED2 (RSUBST f r)`,
-  MATCH_MP_TAC lcrel_INDUCT THEN REWRITE_TAC[RED2; RSUBST; SUBST] THEN
+  MATCH_MP_TAC lcrel_INDUCT THEN
+  REWRITE_TAC[RED2; RSUBST; SUBST; SUBST1_EQ_SUBST] THEN
   REPEAT STRIP_TAC THEN ASM_REWRITE_TAC[injectivity "dblambda"] THEN
   REWRITE_TAC[SUBST_SUBST; SUBST_EXTENS; o_THM; SUBST_DERIV] THEN
   GEN_TAC THEN DISCH_TAC THEN STRUCT_CASES_TAC (SPEC `i:num` num_CASES) THEN
@@ -266,7 +267,7 @@ let RED_INVERSION = prove
    (!x y r. RED (x,y,LCREL_ABS r) <=>
             (?z w. x = ABS z /\ y = ABS w /\ RED (z,w,r))) /\
    (!x y u v. RED (x,y,LCREL_BETA u v) <=>
-          x = APP (ABS u) v /\ y = SUBST (PUSHENV v REF) u) /\
+          x = APP (ABS u) v /\ y = SUBST1 v u) /\
    (!x y. RED (x,y,LCREL_ETA u) <=>
           x = ABS (APP (REINDEX SUC u) (REF 0)) /\ y = u)`,
   REPEAT STRIP_TAC THEN GEN_REWRITE_TAC LAND_CONV [RED_CASES] THEN
@@ -277,8 +278,8 @@ let RED_SUBST = prove
  (`!x y r f. RED (x,y,r) ==> RED (SUBST f x,SUBST f y,RSUBST f r)`,
   REWRITE_TAC[RIGHT_FORALL_IMP_THM] THEN MATCH_MP_TAC RED_INDUCT_ALT THEN
   REWRITE_TAC[SUBST; RSUBST; DERIV; SUBST_REINDEX; DERIV_O_SUC; RED_RULES] THEN
-  REWRITE_TAC[RED_INVERSION; injectivity "dblambda"; SUBST_SUBST;
-    SUBST_REINDEX; REINDEX_SUBST; GSYM CONJ_ASSOC; UNWIND_THM1;
+  REWRITE_TAC[RED_INVERSION; injectivity "dblambda"; SUBST1_EQ_SUBST;
+    SUBST_SUBST; SUBST_REINDEX; REINDEX_SUBST; GSYM CONJ_ASSOC; UNWIND_THM1;
     RIGHT_EXISTS_AND_THM; SUBST_EXTENS; o_THM; SUBST_PUSHENV_LEMMA] THEN
   MESON_TAC[]);;
 

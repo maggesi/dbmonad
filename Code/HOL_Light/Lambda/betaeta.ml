@@ -9,10 +9,6 @@
 (*          (c) Copyright, Marco Maggesi 2005 2006 2017, 2020                *)
 (* ========================================================================= *)
 
-needs "Library/iter.ml";;
-
-make_overloadable "===" `:A->A->bool`;;
-
 (* ------------------------------------------------------------------------- *)
 (*  DBLAMBDA_BETA                                                            *)
 (* ------------------------------------------------------------------------- *)
@@ -185,6 +181,7 @@ let REDREL_SUBST_EXTENS = prove
 let LC_REL = new_definition
   `LC_REL = DBLAMBDA_EQV (\x y. DBLAMBDA_BETA x y \/ DBLAMBDA_ETA x y)`;;
 
+make_overloadable "===" `:A->A->bool`;;
 overload_interface ("===",`LC_REL:dblambda->dblambda->bool`);;
 
 let LC_REL_BETA = prove

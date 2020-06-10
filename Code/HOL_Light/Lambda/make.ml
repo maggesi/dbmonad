@@ -18,13 +18,12 @@ loadt "Lambda/lib.ml";;                 (* Misc tactics and theorems        *)
 loadt "Lambda/dblambda.ml";;            (* Lambda calculus                  *)
 loadt "Lambda/new_dbmonad.ml";;         (* dB-monads                        *)
 loadt "Lambda/new_dbmodule.ml";;        (* dB-modules                       *)
-loadt "Lambda/dblambda_initial.ml";;    (* Lambda calculus initial          *)
+loadt "Lambda/dblambda_initial.ml";;    (* Lambda calculus is initial       *)
+
+loadt "Lambda/betaeta.ml";;             (* Beta and eta conversions.        *)
+loadt "Lambda/lambda.ml";;              (* Lambda calculus modulo beta-eta. *)
 
 (* OLD STUFF *)
-(*
-loadt "Lambda/betaeta.ml";;             (* Beta and eta rules.              *)
-loadt "Lambda/lambda.ml";;              (* Lambda calculus modulo beta-eta. *)
 loadt "Lambda/dbmonad.ml";;             (* Operads and modules.             *)
 loadt "Lambda/univ.ml";;                (* Universal property of lc.        *)
 loadt "Lambda/rules.ml";;               (* Reduction module.                *)
-*)

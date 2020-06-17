@@ -108,6 +108,23 @@ let DBMREINDEX_DBMREINDEX = prove
   ASM_SIMP_TAC[FUN_EQ_THM; DBMONAD_CLAUSES; o_THM]);;
 
 (* ------------------------------------------------------------------------- *)
+(* Trivial module.                                                           *)
+(* ------------------------------------------------------------------------- *)
+
+let TRIVIAL_DBMODULE = new_definition
+  `TRIVIAL_DBMODULE (r:A dbmonad) : (A,M)dbmodule =
+   MK_DBMODULE (r,\f x. x)`;;
+
+let TRIVIAL_DBMODULE_CLAUSES = prove
+ (`(!r. DBBASE (TRIVIAL_DBMODULE r:(A,M)dbmodule) = r) /\
+   (!r. DBMBIND (TRIVIAL_DBMODULE r:(A,M)dbmodule) f x = x)`,
+  REWRITE_TAC[TRIVIAL_DBMODULE] THEN
+  CLAIM_TAC "rmk"
+    `!r:A dbmonad. IS_DBMODULE (r,(\f x:M. x))` THENL
+  [REWRITE_TAC[IS_DBMODULE]; 
+   ASM_SIMP_TAC[DBBASE_MK_DBMODULE; DBMBIND_MK_DBMODULE]]);;
+
+(* ------------------------------------------------------------------------- *)
 (* Tautological module.                                                      *)
 (* ------------------------------------------------------------------------- *)
 

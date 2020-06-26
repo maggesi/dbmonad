@@ -20,7 +20,11 @@ loadt "Lambda/dbmonad.ml";;             (* dB-monads                        *)
 loadt "Lambda/dbmodule.ml";;            (* dB-modules                       *)
 loadt "Lambda/dblambda_initial.ml";;    (* Lambda calculus is initial       *)
 
-loadt "Lambda/lambda.ml";;              (* Lambda calculus modulo beta-eta. *)
-loadt "Lambda/substoid.ml";;            (* Substoids and modules.           *)
-loadt "Lambda/univ.ml";;                (* Universal property of lc.        *)
-loadt "Lambda/rules.ml";;               (* Reduction module.                *)
+loadt "Lambda/lambda.ml";;              (* Lambda calculus modulo beta-eta  *)
+loadt "Lambda/substoid.ml";;            (* Substoids and modules            *)
+loadt "Lambda/univ.ml";;                (* Universal property of lc         *)
+loadt "Lambda/rules.ml";;               (* Reduction module                 *)
+
+(*
+loadt "Lambda/esubst.ml";;              (* Explict substitution             *)
+*)

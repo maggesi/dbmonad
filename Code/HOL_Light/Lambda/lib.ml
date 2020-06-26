@@ -147,3 +147,24 @@ let CASES_TAC (tm:term) : tactic =
   STRUCT_CASES_TAC (ISPEC tm (cases ty));;
 
 let CASES_GEN_TAC : tactic = GEN_THEN CASES_TAC;;
+
+(* ------------------------------------------------------------------------- *)
+(* Slide operator (needed for the reindexing operator).                      *)
+(* ------------------------------------------------------------------------- *)
+
+let SLIDE = new_recursive_definition num_RECURSION
+  `(!f. SLIDE f 0 = 0) /\
+   (!f i. SLIDE f (SUC i) = SUC (f i))`;;
+
+let SLIDE_I = prove
+ (`SLIDE I = I`,
+  REWRITE_TAC[FUN_EQ_THM] THEN CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; I_THM]);;
+
+let SLIDE_SLIDE = prove
+ (`!f g i. SLIDE f (SLIDE g i) = SLIDE (f o g) i`,
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; o_THM]);;
+
+let SLIDE_INJ = prove
+ (`!f i j. (!k l. f k = f l ==> k = l) ==> (SLIDE f i = SLIDE f j <=> i = j)`,
+  GEN_TAC THEN CASES_GEN_TAC THEN CASES_GEN_TAC THEN
+  REWRITE_TAC[SLIDE; NOT_SUC; SUC_INJ] THEN MESON_TAC[]);;

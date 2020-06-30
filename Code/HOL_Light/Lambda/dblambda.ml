@@ -296,6 +296,82 @@ let SUBST1_SUBST1 = prove
    REWRITE_TAC[injectivity "dblambda"] THEN ARITH_TAC]);;
 
 (* ------------------------------------------------------------------------- *)
+(* Compatibility of unary substitution with reindexing.                      *)
+(* ------------------------------------------------------------------------- *)
+
+let REINDEX_SUBSTI1 = prove
+ (`!x f k y. REINDEX (ITER k SLIDE f) (SUBSTI1 k y x) =
+             SUBSTI1 k (REINDEX f y) (REINDEX (ITER (SUC k) SLIDE f) x)`,
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[SUBSTI1_EQ_SUBST; REINDEX_SUBST; SUBST_REINDEX;
+              SUBST_EXTENS; o_THM] THEN
+  REWRITE_TAC[ITER_SLIDE; ITER_DERIV] THEN GEN_TAC THEN
+  DISCH_THEN (K ALL_TAC) THEN COND_CASES_TAC THEN
+  ASM_SIMP_TAC[REINDEX; ARITH_RULE `i < k ==> i < SUC k`] THEN
+  REWRITE_TAC[REINDEX_REINDEX] THEN ASM_CASES_TAC `i = k:num` THENL
+  [POP_ASSUM SUBST_VAR_TAC THEN
+   REWRITE_TAC[SUB_REFL; ARITH_RULE `k < SUC k`; LT_REFL;
+               REINDEX_REINDEX; REINDEX_EXTENS_EQ] THEN
+   GEN_TAC THEN DISCH_THEN (K ALL_TAC) THEN
+   REWRITE_TAC[o_THM; ARITH_RULE `~(k + i' < k) /\ (k + i') - k = i'`];
+   ALL_TAC] THEN
+  SUBGOAL_THEN
+    `~(i - k = 0) /\ ~(i < SUC k) /\ ~(SUC k + f (i - SUC k) < k) /\
+     ~((SUC k + f (i - SUC k)) - k = 0)`
+    (fun th -> REWRITE_TAC[th]) THENL
+  [ASM_ARITH_TAC; REWRITE_TAC[REINDEX; o_THM]] THEN
+  REWRITE_TAC[ARITH_RULE `~(k + i - k - 1 < k) /\
+                          (k + i - k - 1) - k = i - SUC k`] THEN
+  AP_TERM_TAC THEN AP_TERM_TAC THEN ARITH_TAC);;
+  
+let REINDEX_SUBST1 = prove
+ (`!f x y. REINDEX f (SUBST1 y x) =
+           SUBST1 (REINDEX f y) (REINDEX (SLIDE f) x)`,
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[SUBST1_EQ_SUBST; REINDEX_SUBST; SUBST_REINDEX;
+              SUBST_EXTENS; o_THM] THEN
+  CASES_GEN_TAC THEN DISCH_TAC THEN
+  REWRITE_TAC[REINDEX; PUSHENV; SLIDE]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Compatibility of unary substitution with parallel substitution.           *)
+(* ------------------------------------------------------------------------- *)
+
+let SUBST_SUBSTII1 = prove
+ (`!x f k y. SUBST (ITER k DERIV f) (SUBSTI1 k y x) =
+             SUBSTI1 k (SUBST f y) (SUBST (ITER (SUC k) DERIV f) x)`,
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[SUBSTI1_EQ_SUBST; SUBST_SUBST; SUBST_EXTENS; o_THM] THEN
+  GEN_TAC THEN DISCH_THEN (K ALL_TAC) THEN REWRITE_TAC[ITER_DERIV] THEN
+  COND_CASES_TAC THEN
+  ASM_SIMP_TAC[SUBST; ARITH_RULE `i < k ==> i < SUC k`] THEN
+  REWRITE_TAC[SUBST_REINDEX] THEN ASM_CASES_TAC `i = k:num` THENL
+  [POP_ASSUM SUBST_VAR_TAC THEN
+   REWRITE_TAC[SUB_REFL; ARITH_RULE `k < SUC k`; LT_REFL; SUBST;
+               REINDEX_SUBST; SUBST_EXTENS] THEN
+   GEN_TAC THEN DISCH_THEN (K ALL_TAC) THEN
+   REWRITE_TAC[o_THM; ARITH_RULE `~(k + i' < k) /\ (k + i') - k = i'`];
+   ALL_TAC] THEN
+  SUBGOAL_THEN
+    `~(i - k = 0) /\ ~(i < SUC k) /\ ~(SUC k + f (i - SUC k) < k) /\
+     ~((SUC k + f (i - SUC k)) - k = 0)`
+    (fun th -> REWRITE_TAC[th]) THENL
+  [ASM_ARITH_TAC; ALL_TAC] THEN
+  REWRITE_TAC[SUBST; SUBST_REINDEX; REINDEX_EQ_SUBST; SUBST_EXTENS; o_THM;
+    ARITH_RULE `~(k + i - k - 1 < k) /\ (k + i - k - 1) - k = i - SUC k /\
+                ~((SUC k + i') - k = 0) /\ ~(SUC k + i' < k)`] THEN
+  REPEAT STRIP_TAC THEN AP_TERM_TAC THEN ARITH_TAC);;
+
+let SUBST_SUBST1 = prove
+ (`!f x y. SUBST f (SUBST1 y x) =
+           SUBST1 (SUBST f y) (SUBST (DERIV f) x)`,
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[SUBST1_EQ_SUBST; SUBST_SUBST; SUBST_EXTENS; o_THM] THEN
+  CASES_GEN_TAC THEN DISCH_TAC THEN
+  REWRITE_TAC[SUBST; PUSHENV; DERIV; SUBST_REINDEX] THEN
+  MATCH_MP_TAC EQ_SYM THEN REWRITE_TAC[SUBST_REF_EQ; o_THM; PUSHENV]);;
+
+(* ------------------------------------------------------------------------- *)
 (*  Beta reduction rule.                                                     *)
 (* ------------------------------------------------------------------------- *)
 

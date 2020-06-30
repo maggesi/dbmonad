@@ -4,7 +4,13 @@
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
-(* Datatype for term and object substitutions.                               *)
+(* Failed attempt: Abandoned!                                                *)
+(* We are not able to provide a DB-monad structure.                          *)
+(* Laws hold only up to some equivalence relation.                           *)
+(* ------------------------------------------------------------------------- *)
+
+(* ------------------------------------------------------------------------- *)
+(* Datatype for terms and object substitutions.                              *)
 (* ------------------------------------------------------------------------- *)
 
 let eterm_INDUCT,eterm_RECUR = define_type
@@ -18,52 +24,69 @@ let eterm_INDUCT,eterm_RECUR = define_type
           | ECOMP esubst esubst";;
 
 (* ------------------------------------------------------------------------- *)
-(* Reduction relation.                                                       *)
-(* (Proof-irrelevant version)                                                *)
+(* Reduction relation. (Proof-irrelevant version.)                           *)
+(* The constants `ETERMRED` and `ESUBSTRED` denote the one-step              *)
+(* reduction relations between eterms and esubstitutions respectively.       *)
+(* They are written infix as `>_t1` and `>_s1`).                             *)
 (* ------------------------------------------------------------------------- *)
 
-parse_as_infix("~>",get_infix_status "HAS_SIZE");;
-parse_as_infix(":>",get_infix_status "~>");;
+parse_as_infix(">_t1",(12, "right"));;  (* Reduction for eterms `ETERMRED`   *)
+parse_as_infix(">_s1",(12, "right"));;  (* Reduction for esubsts `ESUBSTRED` *)
 
-let ETERMREL_RULES,ETERMREL_INDUCT,ETERMREL_CASES =
+let ERED1_RULES,ERED1_INDUCT,ERED1_CASES =
   (new_inductive_definition o
-   vsubst [`ETERMREL:eterm->eterm->bool`,`(~>):eterm->eterm->bool`;
-           `ESUBSTREL:esubst->esubst->bool`,`(:>):esubst->esubst->bool`])
-  `ESUBST EREF0 EID ~> EREF0 /\
-   (!x s. ESUBST EREF0 (EPUSH x s) ~> x) /\
-   (!x y s.  ESUBST (EAPP x y) s ~> EAPP (ESUBST x s) (ESUBST y s)) /\
-   (!x s. ESUBST (EABS x) s ~>
+   vsubst [`ETERMRED:eterm->eterm->bool`,`(>_t1):eterm->eterm->bool`;
+           `ESUBSTRED:esubst->esubst->bool`,`(>_s1):esubst->esubst->bool`])
+  `ESUBST EREF0 EID >_t1 EREF0 /\
+   (!x s. ESUBST EREF0 (EPUSH x s) >_t1 x) /\
+   (!x y s.  ESUBST (EAPP x y) s >_t1 EAPP (ESUBST x s) (ESUBST y s)) /\
+   (!x s. ESUBST (EABS x) s >_t1
           EABS (ESUBST x (EPUSH EREF0 (ECOMP s ESHIFT1)))) /\
-   (!x s t. ESUBST (ESUBST x s) t ~> ESUBST x (ECOMP s t)) /\
+   (!x s t. ESUBST (ESUBST x s) t >_t1 ESUBST x (ECOMP s t)) /\
 
-   (!x y. EAPP (EABS x) y ~> ESUBST x (EPUSH y EID)) /\
+   (!x y. EAPP (EABS x) y >_t1 ESUBST x (EPUSH y EID)) /\
 
-   (!s. ECOMP EID s :> s) /\
-   ECOMP ESHIFT1 EID :> ESHIFT1 /\
-   (!x s. ECOMP ESHIFT1 (EPUSH x s) :> s) /\
-   (!x s t. ECOMP (EPUSH x s) t :> EPUSH (ESUBST x t) (ECOMP s t)) /\
-   (!r s t. ECOMP (ECOMP r s) t :> ECOMP r (ECOMP s t))`;;
+   (!s. ECOMP EID s >_s1 s) /\
+   ECOMP ESHIFT1 EID >_s1 ESHIFT1 /\
+   (!x s. ECOMP ESHIFT1 (EPUSH x s) >_s1 s) /\
+   (!x s t. ECOMP (EPUSH x s) t >_s1 EPUSH (ESUBST x t) (ECOMP s t)) /\
+   (!r s t. ECOMP (ECOMP r s) t >_s1 ECOMP r (ECOMP s t))`;;
 
-(* override_interface("~>",`ETERMREL`);; *)
-(* override_interface(":>",`ESUBSTREL`);; *)
+override_interface(">_t1",`ETERMRED`);;
+override_interface(">_s1",`ESUBSTRED`);;
+
+let [ERED1_EREF0_EID; ERED1_ESUBST_EREF0_EPUSH; ERED1_ESUBST_EAPP;
+     ERED1_ESUBST_EABS; ERED1_ESUBST_ESUBST; ERED1_BETA; ERED1_ECOMP_EID;
+     ERED1_ECOMP_ESHIFT1_EID; ECOMP_ESHIFT1_EPUSH; ERED1_ECOMP_EPUSH;
+     ERED1_ECOMP_ECOMP] =
+  CONJUNCTS ERED1_RULES;;
+
+(* ------------------------------------------------------------------------- *)
+(* Congurence closure of a reduction relation.                               *)
+(* ------------------------------------------------------------------------- *)
 
 let ETERMCONG_RULES,ETERMCONG_INDUCT,ETERMCONG_CASES = new_inductive_definition
-  `(!x x' y. R x x' ==> ETERMCONG R S (EAPP x y) (EAPP x' y)) /\
-   (!x y y'. R y y' ==> ETERMCONG R S (EAPP x y) (EAPP x y')) /\
-   (!x x'. R x x' ==> ETERMCONG R S (EABS x) (EABS x')) /\
-   (!x x' s. R x x' ==> ETERMCONG R S (ESUBST x s) (ESUBST x' s)) /\
-   (!x s s'. S s s' ==> ETERMCONG R S (ESUBST x s) (ESUBST x s')) /\
-   (!x x' s. R x x' ==> ESUBSTCONG R S (EPUSH x s) (EPUSH x' s)) /\
-   (!x s s'. S s s' ==> ESUBSTCONG R S (EPUSH x s) (EPUSH x s')) /\
-   (!s s' t. S s s' ==> ESUBSTCONG R S (ECOMP s t) (ECOMP s' t)) /\
-   (!s t t'. S t t' ==> ESUBSTCONG R S (ECOMP s t) (ECOMP s t'))`;;
+  `(!x x'. R x x' ==> ETERMCONG R S x x') /\
+   (!x x' y. ETERMCONG R S x x' ==> ETERMCONG R S (EAPP x y) (EAPP x' y)) /\
+   (!x y y'. ETERMCONG R S y y' ==> ETERMCONG R S (EAPP x y) (EAPP x y')) /\
+   (!x x'. ETERMCONG R S x x' ==> ETERMCONG R S (EABS x) (EABS x')) /\
+   (!x x' s. ETERMCONG R S x x'
+             ==> ETERMCONG R S (ESUBST x s) (ESUBST x' s)) /\
+   (!x s s'. ESUBSTCONG R S s s'
+             ==> ETERMCONG R S (ESUBST x s) (ESUBST x s')) /\
+   (!s s'. S s s' ==> ESUBSTCONG R S s s') /\
+   (!x x' s. ETERMCONG R S x x'
+             ==> ESUBSTCONG R S (EPUSH x s) (EPUSH x' s)) /\
+   (!x s s'. ESUBSTCONG R S s s'
+             ==> ESUBSTCONG R S (EPUSH x s) (EPUSH x s')) /\
+   (!s s' t. ESUBSTCONG R S s s'
+             ==> ESUBSTCONG R S (ECOMP s t) (ECOMP s' t)) /\
+   (!s t t'. ESUBSTCONG R S t t'
+             ==> ESUBSTCONG R S (ECOMP s t) (ECOMP s t'))`;;
 
-needs "Library/rstc.ml";;
-needs "Examples/reduct.ml";;
-CR;;
-WCR;;
-search[`P ==> CR R`];;
-search[`NORMAL`];;
+(* ------------------------------------------------------------------------- *)
+(* Iterated shift.                                                           *)
+(* ------------------------------------------------------------------------- *)
 
 let ESHIFT = new_recursive_definition num_RECURSION
   `ESHIFT 0 = EID /\
@@ -71,137 +94,183 @@ let ESHIFT = new_recursive_definition num_RECURSION
                          then ESHIFT1
                          else ECOMP ESHIFT1 (ESHIFT i))`;;
 
+let ESHIFT_CLAUSES = prove
+ (`ESHIFT 0 = EID /\
+   ESHIFT 1 = ESHIFT1 /\
+   (!i. ESHIFT (SUC (SUC i)) = ECOMP ESHIFT1 (ESHIFT (SUC i)))`,
+  REWRITE_TAC[num_CONV `1`; ESHIFT; NOT_SUC]);;
+
+(* 
 (RAND_CONV (TOP_DEPTH_CONV num_CONV) THENC
  REWRITE_CONV[ESHIFT; ARITH]) `ESHIFT 3`;;
+*)
+
+(* ------------------------------------------------------------------------- *)
+(* References.                                                               *)
+(* ------------------------------------------------------------------------- *)
 
 let EREF = new_definition
-  `EREF i = if i = 0
-            then EREF0
-            else ESUBST EREF0 (ESHIFT i)`;;
+  `EREF i = if i = 0 then EREF0 else ESUBST EREF0 (ESHIFT i)`;;
 
-let EPUSHREF = new_recursive_definition num_RECURSION
-  `(!s. EPUSHREF 0 s = s) /\
-   (!k s. EPUSHREF (SUC k) s = EPUSHREF k (EPUSH (EREF k) s))`;;
+(*
+(TOP_DEPTH_CONV num_CONV THENC REWRITE_CONV[EREF; ESHIFT; ARITH])
+`EREF 3`;;
+*)
+
+let PUSHREF = new_recursive_definition num_RECURSION
+  `(!s. PUSHREF 0 s = s) /\
+   (!k s. PUSHREF (SUC k) s = PUSHREF k (EPUSH (EREF k) s))`;;
 
 (TOP_DEPTH_CONV num_CONV THENC
- REWRITE_CONV[EPUSHREF; EREF; SUC_INJ; NOT_SUC] THENC
+ REWRITE_CONV[PUSHREF; EREF; SUC_INJ; NOT_SUC] THENC
  NUM_REDUCE_CONV)
-`EPUSHREF 3 EID`;;
+`PUSHREF 3 EID`;;
 
-let ELIFT = new_recursive_definition eterm_RECUR
-  `(!i k. ELIFT k i EREF0 = if k = 0 then EREF0 else EREF i) /\
-   (!i k x y. ELIFT k i (EAPP x y) = EAPP (ELIFT k i x) (ELIFT k i y)) /\
-   (!i k x. ELIFT k i (EABS x) = EABS (ELIFT (SUC k) i x)) /\
-   (!i k x s. ELIFT k i (ESUBST x s) = ESUBST x (ELIFTSUBST k i s)) /\
-   (!i k. ELIFTSUBST k i EID = EPUSHREF (PRE k) (ESHIFT i)) /\
-   (!i k. ELIFTSUBST k i ESHIFT1 = EPUSHREF k (ESHIFT (SUC i))) /\
-   (!i k x s. ELIFTSUBST k i (EPUSH x s) = EPUSH (ELIFT k i x) (ELIFTSUBST k i s)) /\
-   (!i k s t. ELIFTSUBST k i (ECOMP s t) = ECOMP s (ELIFTSUBST k i t))`;;
+(* ------------------------------------------------------------------------- *)
+(* Pure lambda eterms (eterms without esubstitution).                           *)
+(* ------------------------------------------------------------------------- *)
+
+let ELAMBDA_RULES,ELAMBDA_INDUCT,ELAMBDA_CASES = new_inductive_definition
+  `(!i. ELAMBDA (EREF i)) /\
+   (!x y. ELAMBDA x /\ ELAMBDA y ==> ELAMBDA (EAPP x y)) /\
+   (!x. ELAMBDA x ==> ELAMBDA (EABS x))`;;
+
+(* ------------------------------------------------------------------------- *)
+(* Semantic substitutions.                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+let IS_SEMSUBST = new_definition
+  `IS_SEMSUBST f <=> ?k. FINITE {i | ~(f i = EREF (i + k))}`;;
+
+let ssubst_TYBIJ =
+  (new_type_definition "ssubst" ("SSUBST","SUBSTFUN") o prove)
+  (`?f. IS_SEMSUBST f`,
+   EXISTS_TAC `EREF` THEN REWRITE_TAC[IS_SEMSUBST] THEN EXISTS_TAC `0` THEN
+   REWRITE_TAC[ADD_0; EMPTY_GSPEC; FINITE_EMPTY]);;
+
+parse_as_binder "SSUBST";;
+
+let SSUBST_EQ = prove
+ (`!f g. f = g <=> !i. SUBSTFUN f i = SUBSTFUN g i`,
+  REPEAT GEN_TAC THEN TRANS_TAC EQ_TRANS `SUBSTFUN f = SUBSTFUN g` THEN
+  CONJ_TAC THENL [MESON_TAC[ssubst_TYBIJ]; REWRITE_TAC[FUN_EQ_THM]]);;
+
+let IS_SEMSUBST_SUBSTFUN = prove
+ (`!s. IS_SEMSUBST (SUBSTFUN s)`,
+  MESON_TAC[ssubst_TYBIJ]);;
+
+let SUBSTFUN_SSUBST = prove
+ (`!f. IS_SEMSUBST f ==> SUBSTFUN ((SSUBST) f) = f`,
+  MESON_TAC[ssubst_TYBIJ]);;
+
+let SSUBST_ID_DEF = new_definition
+  `SSUBST_ID = (SSUBST) EREF`;;
+
+let SSUBST_ID = prove
+ (`SUBSTFUN SSUBST_ID = EREF`,
+  REWRITE_TAC[SSUBST_ID_DEF; GSYM ssubst_TYBIJ; IS_SEMSUBST] THEN
+  EXISTS_TAC `0` THEN REWRITE_TAC[ADD_0; EMPTY_GSPEC; FINITE_EMPTY]);;
+
+let SSUBST_SHIFT_DEF = new_definition
+  `SSUBST_SHIFT = SSUBST i. EREF (SUC i)`;;
+
+let SSUBST_SHIFT = prove
+ (`!i. SUBSTFUN SSUBST_SHIFT i = EREF (SUC i)`,
+  SUBGOAL_THEN `IS_SEMSUBST (\i. EREF (SUC i))`
+  (fun th -> SIMP_TAC[SSUBST_SHIFT_DEF; th; SUBSTFUN_SSUBST]) THEN
+  REWRITE_TAC[IS_SEMSUBST] THEN EXISTS_TAC `1` THEN
+  REWRITE_TAC[ADD1; EMPTY_GSPEC; FINITE_EMPTY]);;
+
+(* 
+let SSUBST_PUSH_DEF = new_definition
+  `SSUBST_PUSH x s = SSUBST i. if i = 0 then x else SUBSTFUN f (PRE i)`;;
+*)
+
+(*
+let EBIND = new_recursive_definition eterm_RECUR
+  `(!f. EBIND f EREF0 = SUBSTFUN f 0) /\
+   (!f x y. EBIND f (EAPP x y) = EAPP (EBIND f x) (EBIND f y)) /\
+   (!f x. EBIND f (EABS x) = EABS (EBIND f x)) /\
+   (!f x s. EBIND f (ESUBST x s) = ESUBST (EBIND f x) (EBINDSUBST f s)) /\
+   (!f. EBINDSUBST f EID = EID) /\
+   (!f. EBINDSUBST f ESHIFT1 = ESHIFT1) /\
+   (!f x s. EBINDSUBST (EPUSH x s) = EPUSH (EBIND f x) (EBINDSUBST s)) /\
+   (!f t. EBINDSUBST (ECOMP s t) = ECOMP (EBINDSUBST t) (EBINDSUBST s))`;;
+*)
+
+(* ------------------------------------------------------------------------- *)
+(* Implicit reindexing.                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+let EREINDEX = new_recursive_definition eterm_RECUR
+  `(!f. EREINDEX f EREF0 = EREF (f 0)) /\
+   (!f x y. EREINDEX f (EAPP x y) = EAPP (EREINDEX f x) (EREINDEX f y)) /\
+   (!f x. EREINDEX f (EABS x) = EABS (EREINDEX (SLIDE f) x)) /\
+   (!f x s. EREINDEX f (ESUBST x s) =  ESUBST x (EREINDEXSUBST f s)) /\
+   (!f. EREINDEXSUBST f EID = EID) /\
+   (!f. EREINDEXSUBST f ESHIFT1 = ESHIFT1) /\
+   (!f x s. EREINDEXSUBST f (EPUSH x s) =
+            EPUSH (EREINDEX f x) (EREINDEXSUBST (SLIDE f) s)) /\
+   (!f s t. EREINDEXSUBST f (ECOMP s t) = ECOMP s (EREINDEXSUBST f t))`;;
+
+let REINDEX_RID = prove
+ (`!f i. EREINDEX f (EREF i) = EREF (f i)`,
+  GEN_TAC THEN INDUCT_TAC THEN REWRITE_TAC[EREF; EREINDEX] THEN
+  REWRITE_TAC[NOT_SUC; ESHIFT] THEN CASES_TAC `i:num` THEN
+  REWRITE_TAC[NOT_SUC; EREINDEX; ESHIFT] THEN
+
+  COND_CASES_TAC
+  
+  ;;
+
+let EDERIV = new_recursive_definition num_RECURSION
+  `(!f. EDERIV f 0 = EREF0) /\
+   (!f i. EDERIV f (SUC i) = EREINDEX SUC (f i))`;;
+
+(* ------------------------------------------------------------------------- *)
+(* Implicit substitution.                                                    *)
+(* ------------------------------------------------------------------------- *)
 
 let EBIND = new_recursive_definition eterm_RECUR
-
-prove_recursive_functions_exist eterm_RECUR
-  `(!x. EBIND EID x = x) /\
-   (!x. EBIND ESHIFT1 x = ELIFT 0 1 x) /\
-   (!s t x. EBIND (ECOMP s t) x = EBIND t (EBIND s x)) /\
-   (!s x y. EBIND s (EAPP x y) = EAPP (EBIND s x) (EBIND s y)) /\
-   (!s x. EBIND s (EABS x) = EABS (EBIND (ELIFTSUBST 0 1 s) x)) /\
-   (!s x t. EBIND s (ESUBST x t) = ESUBST x (EBINDSUBST s t)) /\
-   (!x s. EBIND (EPUSH x s) EREF0 = x)`;;
+  `(!f. EBIND f EREF0 = f 0) /\
+   (!f x y. EBIND f (EAPP x y) = EAPP (EBIND f x) (EBIND f y)) /\
+   (!f x. EBIND f (EABS x) = EABS (EBIND (EDERIV f) x)) /\
+   (!f x s. EBIND f (ESUBST x s) = ESUBST x (EBINDSUBST f s)) /\
+   (!f. EBINDSUBST f EID = EID) /\
+   (!f. EBINDSUBST f ESHIFT1 = ESHIFT1) /\
+   (!f x s. EBINDSUBST f (EPUSH x s) =
+            EPUSH (EBIND f x) (EBINDSUBST f s)) /\
+   (!f s t. EBINDSUBST f (ECOMP s t) =
+            ECOMP (EBINDSUBST f s) (EBINDSUBST f t))`;;
 
 (* ------------------------------------------------------------------------- *)
-(* Alternative induction structure based on usual Ref constructor.           *)
+(* DB-monad structure                                                        *)
 (* ------------------------------------------------------------------------- *)
 
+let EBIND_RID = prove
+ (`!f i. EBIND f (EREF i) = f i`,
+  GEN_TAC THEN INDUCT_TAC THEN REWRITE_TAC[EREF; EBIND] THEN
+  REWRITE_TAC[NOT_SUC; ESHIFT] THEN
+  POP_ASSUM MP_TAC THEN CASES_TAC `i:num` THEN
+
+    REWRITE_TAC[EREF; EBIND]
+  
+  REWRITE_TAC[EBIND]
+  COND_CASES_TAC THEN
+  POP_ASSUM SUBST_VAR_TAC
+  POP_ASSUM MP_TAC
+  REWRITE_TAC[EREF; EBIND]
+  REWRITE_TAC[EBIND]
+
+let EBIND_EBIND = prove
+ (`!x f g. EBIND f (EBIND g x) = EBIND (EBIND f o g) x`,
+ );;
+
+let EBIND_LID = prove
+ (`!x. EBIND EREF x = x`,
+)
 
 
-
-
-needs "Library/iter.ml";;
-
-
-
-
-let ESHIFT = new_definition
-  `ESHIFT i = ITER i (\x. ESUBST x ESHIFT1)`;;
-
-let EREF = new_definition
-  `EREF i = ESHIFT i EREF0`;;
-
-let ISUBSTFUN = new_recursive_definition eterm_RECUR
-
-let SLIDE = new_recursive_definition num_RECURSION
-  `(!f. SLIDE f 0 = 0) /\
-   (!f i. SLIDE f (SUC i) = SUC (f i))`;;
-
-let ESUBSTFUN = new_recursive_definition eterm_INDUCT
-
-prove_recursive_functions_exist eterm_RECUR
-  `ESUBSTFUN EID = EREF /\
-   ESUBSTFUN ESHIFT1 = EREF o SUC /\
-   (!x s. ESUBSTFUN (EPUSH x s) =
-          \i. match i with 0 => x | SUC i -> EREF i) /\
-   (!s t. ESUBSTFUN (ECOMP s t) = \i. ESUBSTTM (ESUBSTFUN s i) t) /\
-   (ESUBSTTM EREF0 = \f. EREF (f 0)) /\
-   (!x y. ESUBSTTM (EAPP x y) = \f. EAPP (ESUBSTTM x f) (ESUBSTTM y f)) /\
-   (!x. ESUBSTTM (EABS x) = \f. EABS (ESUBSTTM x f)) /\
-   (!x s. ESUBSTTM (ESUBST x s) = \f. )`;;
-
-prove_recursive_functions_exist eterm_RECUR
-  `(!f. EREINDEX f EREF0 = EREF (f 0)) /\
-   (!f x y. EREINDEX f (EAPP x y) = EAPP (EREINDEX f x) (EREINDEX f x)) /\
-   (!f x. EREINDEX f (EABS x) = EABS (EREINDEX (SLIDE f) x)) /\
-   (!f x s. EREINDEX f (ESUBST x s) = ESUBST x (EREINDEXSUBST f s)) /\
-   (!f. EREINDEXSUBST f EID = f)`;;
-     /\
-   (!f. EREINDEXSUBST f ESHIFT1 = f o SUC) /\
-   (!x s. EREINDEXSUBST (EPUSH x s) =
-      \i. match i with 0 -> x | SUC j -> EREINDEX SUC (f j)) /\
-   (!s t. EREINDEXSUBST (ECOMP s t) = EREINDEXSUBST f t o EREINDEXSUBST I s)`;;
-
-
-
-help "prove_recursive_functions_exist";;
-  (map dest_var o frees)
-
-   ISUBSTTM : (num => eterm) -> eterm -> eterm
-  ISUBSTFUN : (num => eterm) -> esubst -> (num => eterm)
-
-`IS_BD (f:nat->eterm) <=> (?n k. !i. n <= i ==> f i = EREF (i + k))`
-
-prove_recursive_functions_exist eterm_RECUR
-  `(!f. ISUBSTTM f EREF0 = f 0) /\
-   (!f x y. ISUBSTTM f (EAPP x y) = EAPP (ISUBSTTM f x) (ISUBSTTM f x)) /\
-   (!f x. ISUBSTTM f (EABS x) = EABS (ISUBSTTM f x)) /\
-   (!f x s. ISUBSTTM f (ESUBST x s) = ISUBSTTM (ISUBSTTM f o ISUBSTFUN s) x) /\
-   ISUBSTFUN EID = EREF /\
-   ISUBSTFUN ESHIFT1 = EREF o SUC /\
-   (!x s. ISUBSTFUN (EPUSH x s) =
-      \i. match i with 0 -> x | SUC j -> ISUBSTFUN s j) /\
-   (!s t. ISUBSTFUN (ECOMP s t) =
-      ISUBSTTM (ISUBSTFUN t) o (ISUBSTFUN s))`;;
-
-let MSUBST = new_recursive_definition eterm_RECUR
-  `(!f. MSUBST f EREF0 = f 0) /\
-   (!f x y. MSUBST f (EAPP x y) = EAPP (MSUBST f x) (MSUBST f y)) /\
-   (!f x. MSUBST f (EABS x) = EABS (MSUBST (EPUSH EREF0 (ECOMP s ESHIFT1)) x)) /\
-   (!f x s. MSUBST f (ESUBST x s) = ESUBST x (ECOMP f s)) /\
-
-   `
-
-let SHIFT = new_recursive_definition num_RECURSION
-  `(!f. SHIFT f 0 = 0) /\
-   (!f i. SHIFT f (SUC i) = SUC (f i))`;;
-
-let ETERMREINDEX = new_recursive_definition eterm_RECUR
-  `(!f. ETERMREINDEX f EREF0 = EREF (f 0)) /\
-   (!f x y. ETERMREINDEX f (EAPP x y) = EAPP (ETERMREINDEX f x) (ETERMREINDEX f y)) /\
-   (!f x. ETERMREINDEX f (EABS x) = EABS (ETERMREINDEX (SLIDE f) x)) /\
-   (!f x s. ETERMREINDEX f (ESUBST x s) = ESUBST x (ESUBSTREINDEX f s)) /\
-   (!f. ESUBSTREINDEX f EID = )`;;
-
-let MSUBST = new_recursive_definition eterm_RECUR
-  `(!f. MSUBST f EREF0 = f 0) /\
-   (!f. MSUBST f (EAPP x y) = EAPP (MSUBST f `;;
-
-   (!x y. EAPP (EABS x) y ~> ESUBST x (EPUSH y EID)) /\
+let IS_DBMONAD_EBIND = prove
+ (`IS_DBMONAD (EBIND,EREF)`,
+  REWRITE_TAC[IS_DBMONAD]

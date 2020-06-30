@@ -6,7 +6,13 @@
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
+(* Development of this file is in pause.                                     *)
+(* Probably not needed anymore for POPL2021                                  *)
+(* ------------------------------------------------------------------------- *)
+
+(* ------------------------------------------------------------------------- *)
 (* Inductive datatype of the reduction rules of lambda calculus.             *)
+(* (Proof-relevant style reduction rules.)                                   *)
 (* ------------------------------------------------------------------------- *)
 
 let lcrel_INDUCT,lcrel_RECUR = define_type
@@ -129,7 +135,7 @@ let RFREES_CLAUSES = prove
   REWRITE_TAC[EXTENSION; RFREES_INVERSION] THEN SET_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
-(* SBMODULE structure of the reduction relations. *)
+(* SBMODULE structure of the reduction relations.                            *)
 (* ------------------------------------------------------------------------- *)
 
 let RSUBST = new_recursive_definition lcrel_RECUR

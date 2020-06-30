@@ -1,5 +1,16 @@
 (* ========================================================================= *)
 (* Initial semantics for the untyped lambda calculus.                        *)
+(*                                                                           *)
+(* Content:                                                                  *)
+(*   - Preparation.                                                          *)
+(*     - Further lemmas on Lambda Calculus.                                  *)
+(*     - DB-monad of lambda calculus.                                        *)
+(*     - Application and abstraction as module morphisms.                    *)
+(*   - Lambda calculus ad initial DB monad.                                  *)
+(*     - Category of lambda-calculi models.                                  *)
+(*     - Definition of the initial morphism.                                 *)
+(*     - Unicity and initiality.                                             *)
+(*   - Lambda calculus with beta reduction as initial DB reduction monad.    *)
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
@@ -41,6 +52,10 @@ let DBDERIV_LAMBDA_DBMONAD = prove
   REWRITE_TAC[DBDERIV; DERIV; LAMBDA_DBMONAD_CLAUSES;
               DBREINDEX_LAMBDA_DBMONAD]);;
 
+(* ------------------------------------------------------------------------- *)
+(* Application and abstraction as module morphisms.                          *)
+(* ------------------------------------------------------------------------- *)
+
 let APP_DBMODULE_HOM = prove
  (`UNCURRY APP IN DBMODULE_HOM
                    (DBMODULE_PRODUCT (SELF_DBMODULE LAMBDA_DBMONAD,
@@ -57,6 +72,13 @@ let ABS_DBMODULE_HOM = prove
   REWRITE_TAC[DBMODULE_HOM; IN_ELIM_THM] THEN
   SIMP_TAC[DBDERIVED_CLAUSES; INFINITE_DBLAMBDA; SELF_DBMODULE_CLAUSES;
            LAMBDA_DBMONAD_CLAUSES; SUBST; DBDERIV_LAMBDA_DBMONAD]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Category of lambda-calculi models.                                        *)
+(* (I.e., DB-monads endowed with "app" and "abs" morphisms)                  *)
+(* Object definition is `LAMBDA_MODEL` and morphism definition               *)
+(* is LAMBDA_MODEL_HOM.                                                      *)
+(* ------------------------------------------------------------------------- *)
 
 let LAMBDA_MODEL = new_definition
   `LAMBDA_MODEL =
@@ -111,6 +133,12 @@ let IN_LAMBDA_MODEL_HOM = prove
     (!x y. f (app (x,y)) = app' (f x,f y)) /\
     (!x. f (lam x) = lam' (f x))`,
   REWRITE_TAC[LAMBDA_MODEL_HOM; IN_ELIM_THM]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Definition of the initial morphism.                                       *)
+(* Construction of the initial morphism `LAMBDAREC` and proof                *)
+(* of the compatibility laws.                                                *)
+(* ------------------------------------------------------------------------- *)
 
 let LAMBDAREC_DEF = new_recursive_definition dblambda_RECURSION
   `(!i. LAMBDAREC m (REF i) = DBUNIT (FST m) i:A) /\
@@ -183,6 +211,10 @@ let LAMBDAREC_IN_LAMBDA_MODEL_HOM = prove
                   UNCURRY_DEF; LAMBDAREC] THEN
   ASM_SIMP_TAC[LAMBDAREC_IN_DBMONAD_HOM]);;
 
+(* ------------------------------------------------------------------------- *)
+(* Unicity and initiality.                                                   *)
+(* ------------------------------------------------------------------------- *)
+
 let LAMBDAREC_UNIQUE = prove
  (`!m:A dbmonad app lam r.
      r IN LAMBDA_MODEL_HOM ((LAMBDA_DBMONAD,UNCURRY APP,ABS),(m,app,lam))
@@ -203,3 +235,30 @@ let LAMBDA_INITIAL = prove
      ==> ?!f. f IN LAMBDA_MODEL_HOM
                      ((LAMBDA_DBMONAD,UNCURRY APP, ABS),(m,app,lam))`,
   MESON_TAC[LAMBDAREC_IN_LAMBDA_MODEL_HOM; LAMBDAREC_UNIQUE]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Initial semantics for lambda calculus with beta reduction.                *)
+(*                                                                           *)
+(* We work in the category of the "one-step beta-reduction relations".       *)
+(* A full-subcategory of the category of binary relations.                   *)
+(* (There is a morphism from `R` to `S when `!x y. R x y ==> S x y)`.)       *)
+(* Below we only give the set of objects.                                    *)
+(* ------------------------------------------------------------------------- *)
+
+let ONESTEP_BETA_REDUCTION = new_definition
+  `ONESTEP_BETA_REDUCTION =
+   {R | (!x y f. R x y ==> R (SUBST f x) (SUBST f y)) /\
+        (!x y. DBLAMBDA_BETA x y ==> R x y) /\
+        (!x1 x2 y. R x1 x2 ==> R (APP x1 y) (APP x2 y)) /\
+        (!x y1 y2. R y1 y2 ==> R (APP x y1) (APP x y2)) /\
+        (!x y. R x y ==> R (ABS x) (ABS y))}`;;
+
+(* ------------------------------------------------------------------------- *)
+(* Initiality of DBLAMBDA_CONG DBLAMBDA_BETA.                                *)
+(* ------------------------------------------------------------------------- *)
+
+let BETARED_INITIAL = prove
+ (`!R. R IN ONESTEP_BETA_REDUCTION
+       ==> (!x y. DBLAMBDA_CONG DBLAMBDA_BETA x y ==> R x y)`,
+  GEN_TAC THEN REWRITE_TAC[ONESTEP_BETA_REDUCTION; IN_ELIM_THM] THEN
+  STRIP_TAC THEN MATCH_MP_TAC DBLAMBDA_CONG_INDUCT THEN ASM_REWRITE_TAC[]);;

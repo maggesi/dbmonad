@@ -24,6 +24,7 @@ loadt "Lambda/lambda.ml";;              (* Lambda calculus modulo beta-eta  *)
 loadt "Lambda/substoid.ml";;            (* Substoids and modules            *)
 loadt "Lambda/univ.ml";;                (* Universal property of lc         *)
 loadt "Lambda/rules.ml";;               (* Reduction module                 *)
+loadt "Lambda/esubstred.ml";;           (* Explicit reduction for subst1    *)
 
 (*
 loadt "Lambda/esubst.ml";;              (* Explict substitution             *)

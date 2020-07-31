@@ -273,6 +273,24 @@ extend_axset_rewrites
    INT_EMPTYSET; INT_IDEMP];;
 
 (* ------------------------------------------------------------------------- *)
+(* Simple consequences of the axiom of foundations.                          *)
+(* ------------------------------------------------------------------------- *)
+
+search[`s Int Singleton s`];;
+
+let INT_SINGLETON_DISJOINT = prove
+ (`!s. s Int Singleton s = Emptyset`,
+  GEN_TAC THEN MP_TAC (SPEC `Singleton s` FOUNDATION_AX) THEN ST_TAC[]);;
+
+let IN_REFL = prove
+ (`!s. ~(s In s)`,
+  ST_TAC[INT_SINGLETON_DISJOINT]);;
+
+let SINGLETON_SBSET_REFL = prove
+ (`!s. ~(Singleton s Sbset s)`,
+  ST_TAC[IN_REFL]);;
+
+(* ------------------------------------------------------------------------- *)
 (* Set insertion (i.e., adding one an element to a set).                     *)
 (* ------------------------------------------------------------------------- *)
 

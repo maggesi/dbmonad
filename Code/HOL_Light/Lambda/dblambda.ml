@@ -270,6 +270,11 @@ let PUSHENV = new_recursive_definition num_RECURSION
   `(!u:A f. PUSHENV u f 0 = u) /\
    (!u f i. PUSHENV u f (SUC i) = f i)`;;
 
+let PUSHENV_EXPAND = prove
+ (`!f. f = PUSHENV (f 0) (f o SUC)`,
+  GEN_TAC THEN REWRITE_TAC[FUN_EQ_THM] THEN CASES_GEN_TAC THEN
+  REWRITE_TAC[PUSHENV; o_THM]);;
+
 let PUSHENV_SLIDE = prove
  (`!f g u:A i. PUSHENV u f (SLIDE g i) = PUSHENV u (f o g) i`,
   REPEAT GEN_TAC THEN CASES_TAC `i:num` THEN

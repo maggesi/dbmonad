@@ -20,10 +20,25 @@ parse_as_infix("In",get_infix_status "IN");;           (* Membership rel    *)
 parse_as_infix("Sbset",get_infix_status "SUBSET");;    (* Subset rel        *)
 parse_as_infix("Un",get_infix_status "UNION");;        (* Union             *)
 parse_as_infix("Int",get_infix_status "INTER");;       (* Intersection      *)
-parse_as_infix("Setins",get_infix_status "INSERT");;   (* Insertion         *)
 parse_as_infix("Setdiff",get_infix_status "DIFF");;    (* Difference        *)
 parse_as_infix(",,",get_infix_status ",");;            (* Pairs             *)
 parse_as_infix("SETCROSS",get_infix_status "CROSS");;  (* Cartesian product *)
+
+(* ------------------------------------------------------------------------- *)
+(* Sintax for the empty set, insertion and set enumeration.                  *)
+(* ------------------------------------------------------------------------- *)
+
+make_overloadable "EMPTY" `:A`;;
+make_overloadable "INSERT" `:A->B->B`;;
+
+let prioritize_hol_set() =
+  overload_interface("EMPTY",mk_mconst("EMPTY",`:A->bool`));
+  overload_interface("INSERT",mk_mconst("INSERT",`:A->(A->bool)->(A->bool)`));;
+
+prioritize_hol_set();;
+
+overload_interface("EMPTY",`Emptyset:set`);;
+overload_interface("INSERT",`Setins:set->set->set`);;
 
 (* ------------------------------------------------------------------------- *)
 (* Universe of sets.                                                         *)
@@ -53,11 +68,11 @@ let INTERSET_DEF = new_definition
   `s Int t = Separation s (\x. x In t)`;;
 
 let SINGLETON_DEF = new_definition
-  `Singleton s = Replacement (\x. s) (Powerset Emptyset)`;;
+  `Singleton s = Replacement (\x. s) (Powerset {})`;;
 
 let UN_DEF = new_definition
-  `s Un t = Unionset (Replacement (\x. if x = Emptyset then s else t)
-                                  (Powerset (Singleton Emptyset)))`;;
+  `s Un t = Unionset (Replacement (\x. if x = {} then s else t)
+                                  (Powerset (Singleton {})))`;;
 
 (* ------------------------------------------------------------------------- *)
 (* Axioms.                                                                   *)
@@ -67,7 +82,7 @@ let SET_EQ = new_axiom
   `!s t. s = t <=> (!x. x In s <=> x In t)`;;
 
 let IN_EMPTYSET = new_axiom
-  `!x. ~(x In Emptyset)`;;
+  `!x. ~(x In {})`;;
 
 let IN_UNIONSET = new_axiom
   `!s x. x In Unionset s <=> ?t. x In t /\ t In s`;;
@@ -82,10 +97,10 @@ let IN_REPLACEMENT = new_axiom
   `!f s y. y In Replacement f s <=> ?x. x In s /\ y = f x`;;
 
 let FOUNDATION_AX = new_axiom
-  `!s. ~(s = Emptyset) ==> ?x. x In s /\ x Int s = Emptyset`;;
+  `!s. ~(s = {}) ==> ?x. x In s /\ x Int s = {}`;;
 
 let INFINITY_AX = new_axiom
-  `?s. Emptyset In s /\ !x. x In s ==> x Un Singleton x In s`;;
+  `?s. {} In s /\ !x. x In s ==> x Un Singleton x In s`;;
 
 (* ------------------------------------------------------------------------- *)
 (* Basic properties about the subset relation.                               *)
@@ -108,11 +123,11 @@ let SBSET_ANTISYM_EQ = prove
   MESON_TAC[SBSET_REFL; SBSET_ANTISYM]);;
 
 let EMPTYSET_SBSET = prove
- (`!s. Emptyset Sbset s`,
+ (`!s. {} Sbset s`,
   REWRITE_TAC[SBSET; IN_EMPTYSET ]);;
 
 let SBSET_EMPTYSET = prove
- (`!s. s Sbset Emptyset <=> s = Emptyset`,
+ (`!s. s Sbset {} <=> s = {}`,
   REWRITE_TAC[SBSET; IN_EMPTYSET ; SET_EQ]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -122,17 +137,17 @@ let SBSET_EMPTYSET = prove
 let IN_SINGLETON = prove
  (`!s x. x In Singleton s <=> x = s`,
   REPEAT GEN_TAC THEN REWRITE_TAC[SINGLETON_DEF; IN_REPLACEMENT] THEN
-  SUBGOAL_THEN `!x. x In Powerset Emptyset <=> x = Emptyset`
+  SUBGOAL_THEN `!x. x In Powerset {} <=> x = {}`
     (fun th -> REWRITE_TAC[th; UNWIND_THM2]) THEN
   REWRITE_TAC[IN_POWERSET; SBSET_EMPTYSET]);;
 
 let SINGLETON_NOT_EMPTY = prove
- (`~(Singleton s = Emptyset)`,
+ (`~(Singleton s = {})`,
   GEN_REWRITE_TAC RAND_CONV [SET_EQ] THEN
   REWRITE_TAC[IN_SINGLETON; IN_EMPTYSET] THEN MESON_TAC[]);;
 
 let SBSET_SINGLETON = prove
- (`!s x. s Sbset Singleton x <=> s = Emptyset \/ s = Singleton x`,
+ (`!s x. s Sbset Singleton x <=> s = {} \/ s = Singleton x`,
   REPEAT GEN_TAC THEN EQ_TAC THENL
   [REWRITE_TAC[SBSET; IN_SINGLETON] THEN INTRO_TAC "hp" THEN
    ASM_CASES_TAC `x In s` THENL
@@ -163,7 +178,7 @@ let IN_UN = prove
 
 let SETCHOICE =
   (new_specification ["SETCHOICE"] o REWRITE_RULE[SKOLEM_THM] o prove)
-   (`!s. ?x. ~(s = Emptyset) ==> x In s`,
+   (`!s. ?x. ~(s = {}) ==> x In s`,
     REWRITE_TAC[SET_EQ; IN_EMPTYSET] THEN MESON_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -177,9 +192,25 @@ let NOT_UNIV = prove
   EXISTS_TAC `Separation u (\s. ~(s In s))` THEN
   ASM_REWRITE_TAC[IN_SEPARATION]);;
 
+
 (* ------------------------------------------------------------------------- *)
+(*                                                                           *)
 (* The foundation of Set Theory in HOL ends here.                            *)
-(* We setup a basic automation procedure based on meson.                     *)
+(*                                                                           *)
+(* ------------------------------------------------------------------------- *)
+
+
+(* ------------------------------------------------------------------------- *)
+(* Overloading.                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+let prioritize_axset() =
+  prioritize_overload `:set`;;
+
+prioritize_axset();;
+
+(* ------------------------------------------------------------------------- *)
+(* Basic automation procedure for set theory based on meson.                 *)
 (* ------------------------------------------------------------------------- *)
 
 let set_axset_rewrites,extend_axset_rewrites,axset_rewrites,axset_net =
@@ -233,7 +264,7 @@ let ST_RULE tm = prove(tm,ST_TAC[]);;
 (* ------------------------------------------------------------------------- *)
 
 let UN_EMPTYSET = ST_RULE
-  `(!s. s Un Emptyset = s) /\ (!s. Emptyset Un s = s)`;;
+  `(!s. s Un {} = s) /\ (!s. {} Un s = s)`;;
 
 let UN_ACI = ST_RULE
   `p Un q = q Un p /\
@@ -255,7 +286,7 @@ let UN_SYM,UN_ASSOC,UN_IDEMP =
   UN_SYM,GSYM UN_ASSOC,UN_IDEMP;;
 
 let INT_EMPTYSET = ST_RULE
-  `(!s. s Int Emptyset = Emptyset) /\ (!s. Emptyset Int s = Emptyset)`;;
+  `(!s. s Int {} = {}) /\ (!s. {} Int s = {})`;;
 
 let INT_ACI = ST_RULE
   `p Int q = q Int p /\
@@ -279,7 +310,7 @@ extend_axset_rewrites
 search[`s Int Singleton s`];;
 
 let INT_SINGLETON_DISJOINT = prove
- (`!s. s Int Singleton s = Emptyset`,
+ (`!s. s Int Singleton s = {}`,
   GEN_TAC THEN MP_TAC (SPEC `Singleton s` FOUNDATION_AX) THEN ST_TAC[]);;
 
 let IN_REFL = prove
@@ -295,47 +326,51 @@ let SINGLETON_SBSET_REFL = prove
 (* ------------------------------------------------------------------------- *)
 
 let SETINS_DEF = new_definition
-  `x Setins s = Singleton x Un s`;;
+  `x INSERT s = Singleton x Un s`;;
+
+(* Workaround for a bug?  See SETINS_SYM *)
+overload_interface("INSERT",`Setins`);;
+prioritize_axset();;
 
 let IN_SETINS = prove
- (`!x y s. x In y Setins s <=> x = y \/ x In s`,
+ (`!x y s. x In y INSERT s <=> x = y \/ x In s`,
   REWRITE_TAC[SETINS_DEF; IN_UN; IN_SINGLETON]);;
 
 extend_axset_rewrites [IN_SETINS];;
 
 let SETINS_ABSORPTION_IFF = ST_RULE
-  `!x s. x Setins s = s <=> x In s`;;
+  `!x s. x INSERT s = s <=> x In s`;;
 
 let SETINS_ABSORPTION = prove
- (`!x s. x In s ==> x Setins s = s`,
+ (`!x s. x In s ==> x INSERT s = s`,
   REWRITE_TAC[SETINS_ABSORPTION_IFF]);;
 
 let SETINS_SYM = ST_RULE
-  `!x y s. x Setins y Setins s = y Setins x Setins s`;;
+  `!x y s. x INSERT y INSERT s = y INSERT x INSERT s`;;
 
 let SETINS_IDEMP = ST_RULE
-  `!x s. x Setins x Setins s = x Setins s`;;
+  `!x s. x INSERT x INSERT s = x INSERT s`;;
 
 let SETINS_NOT_EMPTY = ST_RULE
-  `!x s. ~(x Setins s = Emptyset)`;;
+  `!x s. ~(x INSERT s = {})`;;
 
 extend_axset_rewrites [COND_RAND; COND_EXPAND];;
 
 let SETINS_INT = ST_RULE
-  `!a s t. a Setins s Int t = if a In t then a Setins (s Int t) else s Int t`;;
+  `!a s t. a INSERT s Int t = if a In t then a INSERT (s Int t) else s Int t`;;
 
 let SETINS_UN = ST_RULE
-  `!a s t. a Setins s Un t = if a In t then s Un t else a Setins (s Un t)`;;
+  `!a s t. a INSERT s Un t = if a In t then s Un t else a INSERT (s Un t)`;;
 
 let FORALL_IN_SETINS = ST_RULE
-  `!P a s. (!x. x In a Setins s ==> P x) <=> P a /\ (!x. x In s ==> P x)`;;
+  `!P a s. (!x. x In a INSERT s ==> P x) <=> P a /\ (!x. x In s ==> P x)`;;
 
 let EXISTS_IN_SETINS = ST_RULE
-  `!P a s. (?x. x In a Setins s /\ P x) <=> P a \/ (?x. x In s /\ P x)`;;
+  `!P a s. (?x. x In a INSERT s /\ P x) <=> P a \/ (?x. x In s /\ P x)`;;
 
 let UNIONSET_CLAUSES = ST_RULE
-  `Unionset Emptyset = Emptyset /\
-   (!a s. Unionset (a Setins s) = a Un Unionset s)`;;
+  `Unionset {} = {} /\
+   (!a s. Unionset (a INSERT s) = a Un Unionset s)`;;
 
 let UNIONSET_EMPTYSET,UNIONSET_SETINS = CONJ_PAIR UNIONSET_CLAUSES;;
 
@@ -372,15 +407,15 @@ let IN_SETDIFF = prove
 extend_axset_rewrites [IN_SETDIFF];;
 
 let SETDIFF_CLAUSES = ST_RULE
-  `(!s. Emptyset Setdiff s = Emptyset) /\
-   (!a s. a Setins s Setdiff t =
-          if a In t then s Setdiff t else a Setins (s Setdiff t))`;;
+  `(!s. {} Setdiff s = {}) /\
+   (!a s. a INSERT s Setdiff t =
+          if a In t then s Setdiff t else a INSERT (s Setdiff t))`;;
 
 let SETDIFF_REFL = ST_RULE
-  `!s. s Setdiff s = Emptyset`;;
+  `!s. s Setdiff s = {}`;;
 
 let SETDIFF_EQ_EMPTYSET = ST_RULE
-  `!s t. s Setdiff t = Emptyset <=> s Sbset t`;;
+  `!s t. s Setdiff t = {} <=> s Sbset t`;;
 
 extend_axset_rewrites [SETDIFF_CLAUSES; SETDIFF_REFL; SETDIFF_EQ_EMPTYSET];;
 
@@ -389,8 +424,8 @@ extend_axset_rewrites [SETDIFF_CLAUSES; SETDIFF_REFL; SETDIFF_EQ_EMPTYSET];;
 (* ------------------------------------------------------------------------- *)
 
 let FINSET_RULES,FINSET_INDUCT,FINSET_CASES = new_inductive_definition
-  `FINSET Emptyset /\
-   (!x s. FINSET s ==> FINSET (x Setins s))`;;
+  `FINSET {} /\
+   (!x s. FINSET s ==> FINSET (x INSERT s))`;;
 
 let FINSET_INDUCT_STRONG =
   derive_strong_induction (FINSET_RULES,FINSET_INDUCT);;
@@ -401,7 +436,7 @@ let FINSET_INDUCT_STRONG =
 
 let IN_INTSET =
  (new_specification ["Intset"] o REWRITE_RULE[SKOLEM_THM] o prove)
- (`!s. ?r. ~(s = Emptyset) ==> (!x. x In r <=> !t. t In s ==> x In t)`,
+ (`!s. ?r. ~(s = {}) ==> (!x. x In r <=> !t. t In s ==> x In t)`,
   REWRITE_TAC[RIGHT_EXISTS_IMP_THM] THEN REPEAT STRIP_TAC THEN
   CLAIM_TAC "@t0. t0" `?t0. t0 In s` THENL
   [POP_ASSUM MP_TAC THEN ONCE_REWRITE_TAC[SET_EQ] THEN
@@ -416,43 +451,20 @@ let INTSET_SINGLETON = prove
   REWRITE_TAC[IN_SINGLETON; FORALL_UNWIND_THM2]);;
 
 let INTSET_SETINS = prove
- (`!s u. Intset(s Setins u) = if u = Emptyset then s else s Int Intset u`,
+ (`!s u. Intset(s INSERT u) = if u = {} then s else s Int Intset u`,
   REPEAT GEN_TAC THEN GEN_REWRITE_TAC I [SET_EQ] THEN
   GEN_TAC THEN SIMP_TAC[IN_INTSET; SETINS_NOT_EMPTY] THEN COND_CASES_TAC THEN
   ASM_REWRITE_TAC[FORALL_IN_SETINS; IN_EMPTYSET; IN_INT] THEN
   ASM_SIMP_TAC[IN_INTSET]);;
 
-(* ------------------------------------------------------------------------- *)
-(* Parser for set enumerations.                                              *)
-(* ------------------------------------------------------------------------- *)
-
-let parse_axset_enum =
-  let (++<) p q = p ++ q >> fst
-  and (++>) p q = p ++ q >> snd
-  and pmk_axset_enum ptms =
-    itlist (fun x t -> Combp(Combp(Varp("Setins",dpty),x),t)) ptms
-           (Varp("Emptyset",dpty))
-  and list_body =
-    elistof parse_preterm (a (Resword ";"))
-      "semicolon separated list of terms" in
-  a (Ident "set") ++ a (Resword "{") ++>
-  (list_body >> pmk_axset_enum) ++<  a (Resword "}");;
-
-(* Tests. *)
-(*
-(parse_axset_enum o lex o explode) "set{}";;
-(parse_axset_enum o lex o explode) "set{x}";;
-(parse_axset_enum o lex o explode) "set{x;y}";;
-*)
-
-install_parser("setax",parse_axset_enum);;
+extend_axset_rewrites[IN_INTSET; INTSET_SINGLETON];;
 
 (* ------------------------------------------------------------------------- *)
 (* Cartesian product and pairs.                                              *)
 (* ------------------------------------------------------------------------- *)
 
 let PAIRSET_DEF = new_definition
-  `x,,y = set{set{x};set{x;y}}`;;
+  `x,,y = {{x},{x,y}}`;;
 
 let FSTSET_DEF = new_definition
   `FSTSET p = Unionset(Intset p)`;;
@@ -460,7 +472,7 @@ let FSTSET_DEF = new_definition
 let SNDSET_DEF = new_definition
   `SNDSET p =
      let u = Unionset p Setdiff Intset p in
-     Unionset(if u = Emptyset then Unionset p else u)`;;
+     Unionset(if u = {} then Unionset p else u)`;;
 
 let PAIRSET_PROJ = prove
  (`(!x y. FSTSET (x,,y) = x) /\

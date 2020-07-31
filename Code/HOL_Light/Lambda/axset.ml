@@ -20,9 +20,9 @@ parse_as_infix("In",get_infix_status "IN");;           (* Membership rel    *)
 parse_as_infix("Sbset",get_infix_status "SUBSET");;    (* Subset rel        *)
 parse_as_infix("Un",get_infix_status "UNION");;        (* Union             *)
 parse_as_infix("Int",get_infix_status "INTER");;       (* Intersection      *)
-parse_as_infix("Setdiff",get_infix_status "DIFF");;    (* Difference        *)
+parse_as_infix("Diffset",get_infix_status "DIFF");;    (* Difference        *)
 parse_as_infix(",,",get_infix_status ",");;            (* Pairs             *)
-parse_as_infix("SETCROSS",get_infix_status "CROSS");;  (* Cartesian product *)
+parse_as_infix("Crossset",get_infix_status "CROSS");;  (* Cartesian product *)
 
 (* ------------------------------------------------------------------------- *)
 (* Sintax for the empty set, insertion and set enumeration.                  *)
@@ -38,7 +38,7 @@ let prioritize_hol_set() =
 prioritize_hol_set();;
 
 overload_interface("EMPTY",`Emptyset:set`);;
-overload_interface("INSERT",`Setins:set->set->set`);;
+overload_interface("INSERT",`Insset:set->set->set`);;
 
 (* ------------------------------------------------------------------------- *)
 (* Universe of sets.                                                         *)
@@ -185,7 +185,7 @@ let SETCHOICE =
 (* Existence of an universe leads to Russell's paradox.                      *)
 (* ------------------------------------------------------------------------- *)
 
-let NOT_UNIV = prove
+let NOT_UNIVSET = prove
  (`~(?u. !s. s In u)`,
   REFUTE_THEN STRIP_ASSUME_TAC THEN
   SUBGOAL_THEN `?d. !s. s In d <=> ~(s In s)` (fun th -> MESON_TAC[th]) THEN
@@ -325,54 +325,54 @@ let SINGLETON_SBSET_REFL = prove
 (* Set insertion (i.e., adding one an element to a set).                     *)
 (* ------------------------------------------------------------------------- *)
 
-let SETINS_DEF = new_definition
+let INSSET_DEF = new_definition
   `x INSERT s = Singleton x Un s`;;
 
-(* Workaround for a bug?  See SETINS_SYM *)
-overload_interface("INSERT",`Setins`);;
+(* Workaround for a bug?  See INSSET_SYM *)
+overload_interface("INSERT",`Insset`);;
 prioritize_axset();;
 
-let IN_SETINS = prove
+let IN_INSSET = prove
  (`!x y s. x In y INSERT s <=> x = y \/ x In s`,
-  REWRITE_TAC[SETINS_DEF; IN_UN; IN_SINGLETON]);;
+  REWRITE_TAC[INSSET_DEF; IN_UN; IN_SINGLETON]);;
 
-extend_axset_rewrites [IN_SETINS];;
+extend_axset_rewrites [IN_INSSET];;
 
-let SETINS_ABSORPTION_IFF = ST_RULE
+let INSSET_ABSORPTION_IFF = ST_RULE
   `!x s. x INSERT s = s <=> x In s`;;
 
-let SETINS_ABSORPTION = prove
+let INSSET_ABSORPTION = prove
  (`!x s. x In s ==> x INSERT s = s`,
-  REWRITE_TAC[SETINS_ABSORPTION_IFF]);;
+  REWRITE_TAC[INSSET_ABSORPTION_IFF]);;
 
-let SETINS_SYM = ST_RULE
+let INSSET_SYM = ST_RULE
   `!x y s. x INSERT y INSERT s = y INSERT x INSERT s`;;
 
-let SETINS_IDEMP = ST_RULE
+let INSSET_IDEMP = ST_RULE
   `!x s. x INSERT x INSERT s = x INSERT s`;;
 
-let SETINS_NOT_EMPTY = ST_RULE
+let INSSET_NOT_EMPTY = ST_RULE
   `!x s. ~(x INSERT s = {})`;;
 
 extend_axset_rewrites [COND_RAND; COND_EXPAND];;
 
-let SETINS_INT = ST_RULE
+let INSSET_INT = ST_RULE
   `!a s t. a INSERT s Int t = if a In t then a INSERT (s Int t) else s Int t`;;
 
-let SETINS_UN = ST_RULE
+let INSSET_UN = ST_RULE
   `!a s t. a INSERT s Un t = if a In t then s Un t else a INSERT (s Un t)`;;
 
-let FORALL_IN_SETINS = ST_RULE
+let FORALL_IN_INSSET = ST_RULE
   `!P a s. (!x. x In a INSERT s ==> P x) <=> P a /\ (!x. x In s ==> P x)`;;
 
-let EXISTS_IN_SETINS = ST_RULE
+let EXISTS_IN_INSSET = ST_RULE
   `!P a s. (?x. x In a INSERT s /\ P x) <=> P a \/ (?x. x In s /\ P x)`;;
 
 let UNIONSET_CLAUSES = ST_RULE
   `Unionset {} = {} /\
    (!a s. Unionset (a INSERT s) = a Un Unionset s)`;;
 
-let UNIONSET_EMPTYSET,UNIONSET_SETINS = CONJ_PAIR UNIONSET_CLAUSES;;
+let UNIONSET_EMPTYSET,UNIONSET_INSSET = CONJ_PAIR UNIONSET_CLAUSES;;
 
 let UNIONSET_SINGLETON = ST_RULE
   `!x. Unionset (Singleton x) = x`;;
@@ -389,35 +389,35 @@ let EXISTS_IN_UNIONSET = ST_RULE
          (?t. t In s /\ ?x. x In t /\ P x)`;;
 
 extend_axset_rewrites
-  [SETINS_ABSORPTION_IFF; SETINS_SYM; SETINS_IDEMP; SETINS_NOT_EMPTY;
-   FORALL_IN_SETINS; EXISTS_IN_SETINS; UNIONSET_EMPTYSET; UNIONSET_SINGLETON;
+  [INSSET_ABSORPTION_IFF; INSSET_SYM; INSSET_IDEMP; INSSET_NOT_EMPTY;
+   FORALL_IN_INSSET; EXISTS_IN_INSSET; UNIONSET_EMPTYSET; UNIONSET_SINGLETON;
    UNIONSET_UN; FORALL_IN_UNIONSET; EXISTS_IN_UNIONSET];;
 
 (* ------------------------------------------------------------------------- *)
 (* Set difference.                                                           *)
 (* ------------------------------------------------------------------------- *)
 
-let SETDIFF_DEF = new_definition
-  `s Setdiff t = Separation s (\x. ~(x In t))`;;
+let DIFFSET_DEF = new_definition
+  `s Diffset t = Separation s (\x. ~(x In t))`;;
 
-let IN_SETDIFF = prove
- (`!s t x. x In s Setdiff t <=> x In s /\ ~(x In t)`,
-  REWRITE_TAC[SETDIFF_DEF; IN_SEPARATION]);;
+let IN_DIFFSET = prove
+ (`!s t x. x In s Diffset t <=> x In s /\ ~(x In t)`,
+  REWRITE_TAC[DIFFSET_DEF; IN_SEPARATION]);;
 
-extend_axset_rewrites [IN_SETDIFF];;
+extend_axset_rewrites [IN_DIFFSET];;
 
-let SETDIFF_CLAUSES = ST_RULE
-  `(!s. {} Setdiff s = {}) /\
-   (!a s. a INSERT s Setdiff t =
-          if a In t then s Setdiff t else a INSERT (s Setdiff t))`;;
+let DIFFSET_CLAUSES = ST_RULE
+  `(!s. {} Diffset s = {}) /\
+   (!a s. a INSERT s Diffset t =
+          if a In t then s Diffset t else a INSERT (s Diffset t))`;;
 
-let SETDIFF_REFL = ST_RULE
-  `!s. s Setdiff s = {}`;;
+let DIFFSET_REFL = ST_RULE
+  `!s. s Diffset s = {}`;;
 
-let SETDIFF_EQ_EMPTYSET = ST_RULE
-  `!s t. s Setdiff t = {} <=> s Sbset t`;;
+let DIFFSET_EQ_EMPTYSET = ST_RULE
+  `!s t. s Diffset t = {} <=> s Sbset t`;;
 
-extend_axset_rewrites [SETDIFF_CLAUSES; SETDIFF_REFL; SETDIFF_EQ_EMPTYSET];;
+extend_axset_rewrites [DIFFSET_CLAUSES; DIFFSET_REFL; DIFFSET_EQ_EMPTYSET];;
 
 (* ------------------------------------------------------------------------- *)
 (* Finite sets.                                                              *)
@@ -450,11 +450,11 @@ let INTSET_SINGLETON = prove
   SIMP_TAC[IN_INTSET; SINGLETON_NOT_EMPTY] THEN
   REWRITE_TAC[IN_SINGLETON; FORALL_UNWIND_THM2]);;
 
-let INTSET_SETINS = prove
+let INTSET_INSSET = prove
  (`!s u. Intset(s INSERT u) = if u = {} then s else s Int Intset u`,
   REPEAT GEN_TAC THEN GEN_REWRITE_TAC I [SET_EQ] THEN
-  GEN_TAC THEN SIMP_TAC[IN_INTSET; SETINS_NOT_EMPTY] THEN COND_CASES_TAC THEN
-  ASM_REWRITE_TAC[FORALL_IN_SETINS; IN_EMPTYSET; IN_INT] THEN
+  GEN_TAC THEN SIMP_TAC[IN_INTSET; INSSET_NOT_EMPTY] THEN COND_CASES_TAC THEN
+  ASM_REWRITE_TAC[FORALL_IN_INSSET; IN_EMPTYSET; IN_INT] THEN
   ASM_SIMP_TAC[IN_INTSET]);;
 
 extend_axset_rewrites[IN_INTSET; INTSET_SINGLETON];;
@@ -471,57 +471,57 @@ let FSTSET_DEF = new_definition
 
 let SNDSET_DEF = new_definition
   `SNDSET p =
-     let u = Unionset p Setdiff Intset p in
+     let u = Unionset p Diffset Intset p in
      Unionset(if u = {} then Unionset p else u)`;;
 
 let PAIRSET_PROJ = prove
  (`(!x y. FSTSET (x,,y) = x) /\
    (!x y. SNDSET (x,,y) = y)`,
   REWRITE_TAC[PAIRSET_DEF; FSTSET_DEF; SNDSET_DEF;
-    UNIONSET_SETINS; UNIONSET_EMPTYSET; INTSET_SETINS;
-    SETINS_UN; UN_EMPTYSET; SETINS_INT; INT_EMPTYSET; SETDIFF_CLAUSES;
-    IN_SETINS; IN_EMPTYSET; SETINS_NOT_EMPTY] THEN
+    UNIONSET_INSSET; UNIONSET_EMPTYSET; INTSET_INSSET;
+    INSSET_UN; UN_EMPTYSET; INSSET_INT; INT_EMPTYSET; DIFFSET_CLAUSES;
+    IN_INSSET; IN_EMPTYSET; INSSET_NOT_EMPTY] THEN
   REPEAT GEN_TAC THEN COND_CASES_TAC THEN
   CONV_TAC (ONCE_DEPTH_CONV let_CONV) THEN
-  ASM_REWRITE_TAC[UNIONSET_CLAUSES; UN_EMPTYSET; UN_IDEMP; SETINS_NOT_EMPTY]);;
+  ASM_REWRITE_TAC[UNIONSET_CLAUSES; UN_EMPTYSET; UN_IDEMP; INSSET_NOT_EMPTY]);;
 
 let PAIRSET_EQ = prove
  (`!x1 x2 y1 y2. x1,,y1 = x2,,y2 <=> x1 = x2 /\ y1 = y2`,
   MESON_TAC[PAIRSET_PROJ]);;
 
-let SETCROSS_DEF = new_definition
-  `s SETCROSS t = Separation (Powerset (Powerset (s Un t)))
+let CROSSSET_DEF = new_definition
+  `s Crossset t = Separation (Powerset (Powerset (s Un t)))
                              (\p. ?x y. p = x,,y /\ x In s /\ y In t)`;;
 
-let SETCROSS_PROJ_IN = prove
- (`!p s t. p In s SETCROSS t ==> FSTSET p In s /\ SNDSET p In t`,
-  REWRITE_TAC[SETCROSS_DEF; IN_SEPARATION; IN_POWERSET] THEN
+let CROSSSET_PROJ_IN = prove
+ (`!p s t. p In s Crossset t ==> FSTSET p In s /\ SNDSET p In t`,
+  REWRITE_TAC[CROSSSET_DEF; IN_SEPARATION; IN_POWERSET] THEN
   REPEAT STRIP_TAC THEN REPEAT (FIRST_X_ASSUM SUBST_VAR_TAC) THEN
   ASM_REWRITE_TAC[PAIRSET_PROJ]);;
 
-let IN_SETCROSS_CASES = prove
- (`!p s t. p In s SETCROSS t <=> ?x y. x In s /\ y In t /\ p = x,,y`,
+let IN_CROSSSET_CASES = prove
+ (`!p s t. p In s Crossset t <=> ?x y. x In s /\ y In t /\ p = x,,y`,
   REPEAT GEN_TAC THEN
-  REWRITE_TAC[SETCROSS_DEF; IN_SEPARATION; IN_POWERSET] THEN
+  REWRITE_TAC[CROSSSET_DEF; IN_SEPARATION; IN_POWERSET] THEN
   EQ_TAC THEN STRIP_TAC THEN REPEAT (FIRST_X_ASSUM SUBST_VAR_TAC) THENL
   [ASM_MESON_TAC[]; ALL_TAC] THEN
   CONJ_TAC THENL
   [REWRITE_TAC[PAIRSET_DEF] THEN ASM_ST_TAC[];
    REWRITE_TAC[PAIRSET_EQ] THEN ASM_MESON_TAC[]]);;
 
-let PAIRSET_IN_SETCROSS = prove
- (`!s t x y. x,,y In s SETCROSS t <=> x In s /\ y In t`,
-  REWRITE_TAC[IN_SETCROSS_CASES; PAIRSET_EQ] THEN MESON_TAC[]);;
+let PAIRSET_IN_CROSSSET = prove
+ (`!s t x y. x,,y In s Crossset t <=> x In s /\ y In t`,
+  REWRITE_TAC[IN_CROSSSET_CASES; PAIRSET_EQ] THEN MESON_TAC[]);;
 
-let FORALL_IN_SETCROSS = prove
- (`!P s t. (!p. p In s SETCROSS t ==> P p) <=> 
+let FORALL_IN_CROSSSET = prove
+ (`!P s t. (!p. p In s Crossset t ==> P p) <=> 
            (!x y. x In s /\ y In t ==> P(x,,y))`,
-  REWRITE_TAC[IN_SETCROSS_CASES] THEN ASM_MESON_TAC[]);;
+  REWRITE_TAC[IN_CROSSSET_CASES] THEN ASM_MESON_TAC[]);;
 
-let EXISTS_IN_SETCROSS = prove
- (`!P s t. (?p. p In s SETCROSS t /\ P p) <=> 
+let EXISTS_IN_CROSSSET = prove
+ (`!P s t. (?p. p In s Crossset t /\ P p) <=> 
            (?x y. x In s /\ y In t /\ P(x,,y))`,
-  REWRITE_TAC[IN_SETCROSS_CASES] THEN ASM_MESON_TAC[]);;
+  REWRITE_TAC[IN_CROSSSET_CASES] THEN ASM_MESON_TAC[]);;
 
-extend_axset_rewrites [PAIRSET_PROJ; PAIRSET_EQ; PAIRSET_IN_SETCROSS;
-  FORALL_IN_SETCROSS; EXISTS_IN_SETCROSS];;
+extend_axset_rewrites [PAIRSET_PROJ; PAIRSET_EQ; PAIRSET_IN_CROSSSET;
+  FORALL_IN_CROSSSET; EXISTS_IN_CROSSSET];;

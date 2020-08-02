@@ -12,6 +12,12 @@ let LABEL_ABBREV_TAC tm : tactic =
   let s = name_of (lhand tm) in
   ABBREV_TAC tm THEN POP_ASSUM (LABEL_TAC (s^"_def"));;
 
+let LABEL_INDUCT_TAC : tactic =
+  fun (_,w) as gl ->
+    try let s = name_of (fst (dest_forall w)) in
+        (INDUCT_TAC THENL [ALL_TAC; POP_ASSUM (LABEL_TAC (s^"_ind"))]) gl
+    with Failure _ -> failwith "LABEL_INDUCT_TAC";;
+
 (* ------------------------------------------------------------------------- *)
 (* Syntax.                                                                   *)
 (* ------------------------------------------------------------------------- *)
@@ -273,6 +279,9 @@ let UN_ACI = ST_RULE
    p Un p = p /\
    p Un p Un q = p Un q`;;
 
+let UN_EQ_EMPTYSET = ST_RULE
+  `!s t. s Un t = {} <=> s = {} /\ t = {}`;;
+
 let FORALL_IN_UN = ST_RULE
   `!P s t. (!x. x In s Un t ==> P x) <=>
            (!x. x In s ==> P x) /\ (!x. x In t ==> P x)`;;
@@ -300,7 +309,7 @@ let INT_SYM,INT_ASSOC,INT_IDEMP =
   INT_SYM,GSYM INT_ASSOC,INT_IDEMP;;
 
 extend_axset_rewrites
-  [UN_EMPTYSET; UN_IDEMP; FORALL_IN_UN; EXISTS_IN_UN;
+  [UN_EMPTYSET; UN_IDEMP; UN_EQ_EMPTYSET; FORALL_IN_UN; EXISTS_IN_UN;
    INT_EMPTYSET; INT_IDEMP];;
 
 (* ------------------------------------------------------------------------- *)
@@ -329,8 +338,9 @@ let INSSET_DEF = new_definition
   `x INSERT s = Singleton x Un s`;;
 
 (* Workaround for a bug?  See INSSET_SYM *)
+overload_interface("EMPTY",`Emptyset:set`);;
 overload_interface("INSERT",`Insset`);;
-prioritize_axset();;
+(* prioritize_axset();; *)
 
 let IN_INSSET = prove
  (`!x y s. x In y INSERT s <=> x = y \/ x In s`,
@@ -525,3 +535,112 @@ let EXISTS_IN_CROSSSET = prove
 
 extend_axset_rewrites [PAIRSET_PROJ; PAIRSET_EQ; PAIRSET_IN_CROSSSET;
   FORALL_IN_CROSSSET; EXISTS_IN_CROSSSET];;
+
+(* ------------------------------------------------------------------------- *)
+(* Set of natural numbers.                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+let NAT_EXIST = prove
+ (`?nat inc zero suc.
+     (!n:num. inc n In nat) /\
+     (!m n. inc m = inc n ==> m = n) /\
+     (!n. n In nat ==> ?m. n = inc m) /\
+     (inc 0 = zero) /\
+     (!n. inc (SUC n) = suc (inc n))`,
+  DESTRUCT_TAC "@u. u0 u1" INFINITY_AX THEN
+  (DESTRUCT_TAC "@N. Nrules Nind Ncases" o prove_inductive_relations_exist)
+    `N Emptyset /\
+     (!n. N n ==> N (n Un Singleton n))` THEN
+  USE_THEN "Nrules" (fun th1 -> USE_THEN "Nind"
+    (fun th2 -> LABEL_TAC "Nind'" (derive_strong_induction(th1,th2)))) THEN
+  HYP_TAC "Nrules:zero suc" I THEN
+  CLAIM_TAC "N" `!n. N n ==> n In u` THENL
+  [REMOVE_THEN "Nind" MATCH_MP_TAC THEN ASM_REWRITE_TAC[]; ALL_TAC] THEN
+  (DESTRUCT_TAC "@inc. inc0 inc1" o
+   prove_recursive_functions_exist num_RECURSION)
+    `inc 0 = Emptyset /\ (!n. inc (SUC n) = inc n Un Singleton (inc n))` THEN
+  MAP_EVERY EXISTS_TAC
+    [`Separation u N`; `inc:num->set`; `{}`; `\n. n Un Singleton n`] THEN
+  HYP REWRITE_TAC "inc0 inc1" [] THEN
+  CONJ_TAC THENL
+  [LABEL_INDUCT_TAC THEN
+   HYP REWRITE_TAC "inc0 inc1 u0 zero" [IN_SEPARATION] THEN ASM_ST_TAC[];
+   ALL_TAC] THEN
+  CLAIM_TAC "pre"
+    `!n:num. Unionset (inc n Un Singleton (inc n)) = inc n` THENL
+  [REWRITE_TAC[UNIONSET_UN; UNIONSET_SINGLETON] THEN
+   LABEL_INDUCT_TAC THEN HYP REWRITE_TAC "inc0 inc1" [] THENL
+   [ST_TAC[];
+    HYP REWRITE_TAC "n_ind" [UNIONSET_UN; UNIONSET_SINGLETON; UN_ACI]];
+   ALL_TAC] THEN
+  CONJ_TAC THENL
+  [LABEL_INDUCT_TAC THEN HYP REWRITE_TAC "inc0 inc1" [] THEN INDUCT_TAC THEN
+   HYP REWRITE_TAC "inc0 inc1" [UN_EQ_EMPTYSET; SINGLETON_NOT_EMPTY] THENL
+   [MESON_TAC[UN_EQ_EMPTYSET; SINGLETON_NOT_EMPTY]; ALL_TAC] THEN
+   DISCH_THEN (MP_TAC o AP_TERM `Unionset`) THEN
+   HYP REWRITE_TAC "pre m_ind" [SUC_INJ];
+   ALL_TAC] THEN
+  SUBGOAL_THEN `!n. n In Separation u N <=> N n`
+    (fun th -> REWRITE_TAC[th]) THENL
+  [HYP MESON_TAC "N" [IN_SEPARATION];
+   REMOVE_THEN "Nind" MATCH_MP_TAC THEN HYP MESON_TAC "inc0 inc1" []]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Further properties of `nat_of_num`.                                       *)
+(* ------------------------------------------------------------------------- *)
+
+let NAT_OF_NUM_IN_NAT,NAT_OF_NUM_INJ,NAT_OF_NUM_SURJ,NAT_OF_NUM_CLAUSES =
+  let NAT_THM =
+    new_specification ["nat"; "nat_of_num"; "Zero"; "Succ"] NAT_EXIST in
+  let NAT_OF_NUM_IN_NAT,pth1 = CONJ_PAIR NAT_THM in
+  let NAT_OF_NUM_INJ,pth2 = CONJ_PAIR pth1 in
+  let NAT_OF_NUM_SURJ,NAT_OF_NUM_CLAUSES = CONJ_PAIR pth2 in
+  NAT_OF_NUM_IN_NAT,NAT_OF_NUM_INJ,NAT_OF_NUM_SURJ,NAT_OF_NUM_CLAUSES;;
+
+overload_interface("&",`nat_of_num`);;
+
+let NAT_OF_NUM_EQ_ZERO = prove
+ (`!n. &n = Zero <=> n = 0`,
+  MESON_TAC[NAT_OF_NUM_CLAUSES; NAT_OF_NUM_INJ]);;
+
+let NAT_OF_NUM_EQ = prove
+ (`!m n. &m = &n <=> m = n`,
+  MESON_TAC[NAT_OF_NUM_INJ]);;
+
+(* ------------------------------------------------------------------------- *)
+(* num_of_nat.                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+let NUM_OF_NAT_OF_NUM,NAT_OF_NUM_OF_NAT =
+ (CONJ_PAIR o new_specification ["num_of_nat"] o prove)
+ (`?num_of_nat. (!n. num_of_nat (nat_of_num n) = n) /\
+                (!n. n In nat ==> nat_of_num (num_of_nat n) = n)`,
+  EXISTS_TAC `\n. @m. n = nat_of_num m` THEN BETA_TAC THEN
+  MESON_TAC[NAT_OF_NUM_INJ; NAT_OF_NUM_SURJ]);;
+
+let NUM_OF_NAT_INJ = prove
+ (`!m n. m In nat /\ n In nat /\ num_of_nat m = num_of_nat n ==> m = n`,
+  REPEAT STRIP_TAC THEN POP_ASSUM (MP_TAC o AP_TERM `nat_of_num`) THEN
+  ASM_SIMP_TAC[NAT_OF_NUM_OF_NAT]);;
+
+let NUM_OF_NAT_SURJ = prove
+ (`!n. ?m. m In nat /\ n = num_of_nat m`,
+  GEN_TAC THEN EXISTS_TAC `nat_of_num n` THEN
+  REWRITE_TAC[NAT_OF_NUM_IN_NAT; NUM_OF_NAT_OF_NUM]);;
+
+let FORALL_NAT = prove
+ (`!P. (!n. n In nat ==> P n) <=> (!n. P (&n))`,
+  MESON_TAC[NAT_OF_NUM_OF_NAT; NAT_OF_NUM_IN_NAT]);;
+
+let NAT_EQ = prove
+ (`!m n. m In nat /\ n In nat ==> (m = n <=> num_of_nat m = num_of_nat n)`,
+  REWRITE_TAC[RIGHT_FORALL_IMP_THM; IMP_CONJ; FORALL_NAT;
+              NUM_OF_NAT_OF_NUM; NAT_OF_NUM_EQ]);;
+
+let FORALL_NUM_OF_NAT = prove
+ (`!P. (!n. P n) <=> (!n. n In nat ==> P (num_of_nat n))`,
+  REWRITE_TAC[FORALL_NAT; NUM_OF_NAT_OF_NUM]);;
+
+let NUM_OF_NAT_EQ_0 = prove
+ (`!n. n In nat ==> (num_of_nat n = 0 <=> n = Zero)`,
+  REWRITE_TAC[FORALL_NAT; NUM_OF_NAT_OF_NUM; NAT_OF_NUM_EQ_ZERO]);;

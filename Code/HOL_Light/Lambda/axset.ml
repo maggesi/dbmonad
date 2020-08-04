@@ -677,21 +677,109 @@ let IN_RELSET = prove
 (* Functional relations.                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-let FUNCTIONAL_ON = new_definition
-  `f FUNCTIONAL_ON s <=> (!x. x In s ==> ?!y. x,,y In f)`;;
-
 let DOMAIN = new_definition
-  `DOMAIN r = Replacement FSTSET r`;;
+  `DOMAIN r = Separation (Replacement FSTSET r) (\x. ?y. x,,y In r)`;;
+
+let IN_DOMAIN = prove
+ (`!x r. x In DOMAIN r <=> ?y. x,,y In r`,
+  REWRITE_TAC[DOMAIN; IN_SEPARATION; IN_REPLACEMENT] THEN
+  MESON_TAC[PAIRSET_PROJ]);;
 
 let CODOMAIN = new_definition
-  `CODOMAIN r = Replacement SNDSET r`;;
+  `CODOMAIN r = Separation (Replacement SNDSET r) (\y. ?x. x,,y In r)`;;
 
-let AP = new_definition
-  `f AP x = @y. x,,y In f`;;
+let IN_CODOMAIN = prove
+ (`!y r. y In CODOMAIN r <=> ?x. x,,y In r`,
+  REWRITE_TAC[CODOMAIN; IN_SEPARATION; IN_REPLACEMENT] THEN
+  MESON_TAC[PAIRSET_PROJ]);;
 
-let AP_UNIQUE = prove
- (`!f s x y. f FUNCTIONAL_ON s /\ x In s /\ x,,y In f ==> f AP x = y`,
-  REWRITE_TAC[FUNCTIONAL_ON; AP] THEN MESON_TAC[]);;
+let FUNCSET = new_definition
+  `s => t =
+   Separation (s Relset t)
+              (\r. !x. x In s ==> (!y. x,,y In r ==> y In t) /\
+                                  (?!y. x,,y In r))`;;
+
+let IN_FUNCSET = prove
+ (`!f s t. f In s => t <=>
+           f Sbset s Crossset t /\
+           (!x. x In s ==> ?!y. x,,y In f)`,
+  REWRITE_TAC[FUNCSET; IN_SEPARATION; IN_RELSET; SBSET;
+              IN_CROSSSET_CASES] THEN
+  MESON_TAC[PAIRSET_EQ]);;
+
+let FUNCSET_SBSET_RELSET = prove
+ (`!s t. s => t Sbset s Relset t`,
+  REWRITE_TAC[FUNCSET; SBSET; IN_SEPARATION] THEN MESON_TAC[]);;
+
+let DOMAIN_FUNCSET = prove
+ (`!f s t. f In s => t ==> DOMAIN f = s`,
+  REWRITE_TAC[IN_FUNCSET; SBSET; SET_EQ; IN_DOMAIN] THEN
+  REWRITE_TAC[IN_CROSSSET_CASES] THEN
+  MESON_TAC[PAIRSET_EQ]);;
+
+let CODOMAIN_FUNCSET = prove
+ (`!f s t. f In s => t ==> CODOMAIN f Sbset t`,
+  REWRITE_TAC[IN_FUNCSET; SBSET; SET_EQ; IN_CODOMAIN] THEN
+  REWRITE_TAC[IN_CROSSSET_CASES] THEN
+  MESON_TAC[PAIRSET_EQ]);;
+
+let FUNCSET_TARGET_SUPERSET = prove
+ (`!f s t t'. f In s => t /\ t Sbset t' ==> f In s => t'`,
+  REWRITE_TAC[IN_FUNCSET; SBSET; IN_CROSSSET_CASES] THEN MESON_TAC[]);;
+
+let FUNCSET_CODOMAIN_SUPERSET = prove
+ (`!f s t t'. f In s => t /\ CODOMAIN f Sbset t' ==> f In s => t'`,
+  REWRITE_TAC[IN_FUNCSET; SBSET; IN_CROSSSET_CASES; IN_CODOMAIN] THEN
+  MESON_TAC[]);;
+
+let FUNCTIONAL = new_definition
+  `FUNCTIONAL f <=> (!p. p In f ==> ?x y. p = x,,y) /\
+                    (!x y1 y2. x,,y1 In f /\ x,,y2 In f ==> y1 = y2)`;;
+
+let FUNCTIONAL_IFF_FUNCSET = prove
+ (`!f. FUNCTIONAL f <=> f In DOMAIN f => CODOMAIN f`,
+  GEN_TAC THEN
+  REWRITE_TAC[FUNCTIONAL; IN_FUNCSET; SBSET; IN_CROSSSET_CASES;
+              IN_DOMAIN; IN_CODOMAIN] THEN
+  EQ_TAC THEN STRIP_TAC THENL [ASM_MESON_TAC[]; ALL_TAC] THEN
+  CONJ_TAC THENL [ASM_MESON_TAC[]; ALL_TAC] THEN
+  INTRO_TAC "!x y1 y2; y1 y2" THEN
+  USE_THEN "y2" (fun th -> FIRST_ASSUM (MP_TAC o C MATCH_MP th)) THEN
+  USE_THEN "y1" (fun th -> FIRST_X_ASSUM (MP_TAC o C MATCH_MP th)) THEN
+  REWRITE_TAC[PAIRSET_EQ] THEN ASM_MESON_TAC[]);;
+
+let FUNCTIONAL_ON = new_definition
+  `!f s. f FUNCTIONAL_ON s <=> (!p. p In f ==> ?x y. p = x,,y) /\
+                               (!x y. x,,y In f ==> x In s) /\
+                               (!x. x In s ==> ?!y. x,,y In f)`;;
+
+let FUNCTIONAL_ON_IFF_FUNCTIONAL = prove
+ (`!f s. f FUNCTIONAL_ON s <=> FUNCTIONAL f /\ DOMAIN f = s`,
+  REWRITE_TAC[SET_EQ] THEN
+  REWRITE_TAC[FUNCTIONAL_ON; FUNCTIONAL; IN_DOMAIN] THEN MESON_TAC[]);;
+
+let FUNCTIONAL_IFF_FUNCTIONAL_ON = prove
+ (`!f. FUNCTIONAL f <=> f FUNCTIONAL_ON DOMAIN f`,
+  MESON_TAC[FUNCTIONAL_ON_IFF_FUNCTIONAL]);;
+
+let DOMAIN_FUNCTIONAL_ON = prove
+ (`!f s. f FUNCTIONAL_ON s ==> DOMAIN f = s`,
+  MESON_TAC[FUNCTIONAL_ON_IFF_FUNCTIONAL]);;
+
+let FUNCTIONAL_ON_IFF_FUNCSET = prove
+ (`!f s. f FUNCTIONAL_ON s <=> f In s => CODOMAIN f`,
+  REWRITE_TAC[FUNCTIONAL_ON; IN_FUNCSET; IN_CODOMAIN; SBSET; IN_CROSSSET_CASES] THEN
+  MESON_TAC[PAIRSET_EQ]);;
+
+let FUNCSET_IFF_FUNCTIONAL_ON = prove
+ (`!f s t. f In s => t <=> f FUNCTIONAL_ON s /\ CODOMAIN f Sbset t`,
+  REWRITE_TAC[FUNCTIONAL_ON_IFF_FUNCSET] THEN
+  MESON_TAC[CODOMAIN_FUNCSET; SBSET_REFL; FUNCSET_CODOMAIN_SUPERSET]);;
+
+let FUNCSET_IFF_FUNCTIONAL = prove
+ (`!f s t. f In s => t <=> FUNCTIONAL f /\ DOMAIN f = s /\ CODOMAIN f Sbset t`,
+  REWRITE_TAC[FUNCSET_IFF_FUNCTIONAL_ON; FUNCTIONAL_IFF_FUNCTIONAL_ON] THEN
+  MESON_TAC[DOMAIN_FUNCTIONAL_ON]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Function abstraction.                                                     *)
@@ -700,6 +788,7 @@ let AP_UNIQUE = prove
 let FUNC_DEF = new_definition
   `(FUNC) f s = Separation (s Crossset Replacement f s)
                            (\p. ?x. x In s /\ p = (x,,f x))`;;
+
 let IN_FUNC_CASES = prove
  (`!f s p. p In (FUNC) f s <=> ?x. x In s /\ p = x,,f x`,
   REWRITE_TAC[FUNC_DEF; IN_SEPARATION; IN_CROSSSET_CASES; IN_REPLACEMENT] THEN
@@ -711,52 +800,51 @@ let IN_FUNC = prove
               IN_REPLACEMENT; PAIRSET_EQ] THEN
   MESON_TAC[]);;
 
+let FORALL_IN_FUNC = prove
+ (`!P f s. (!p. p In (FUNC) f s ==> P p) <=> (!x. x In s ==> P (x,,f x))`,
+  REWRITE_TAC[IN_FUNC_CASES] THEN MESON_TAC[]);;
+
+let EXISTS_IN_FUNC = prove
+ (`!P f s. (?p. p In (FUNC) f s /\ P p) <=> (?x. x In s /\ P (x,,f x))`,
+  REWRITE_TAC[IN_FUNC_CASES] THEN MESON_TAC[]);;
+
+let FUNC_IN_FUNCSET = prove
+ (`!f s t. (FUNC) f s In s => t <=> (!x. x In s ==> f x In t)`,
+  REWRITE_TAC[IN_FUNCSET; SBSET; FORALL_IN_FUNC;
+              PAIRSET_IN_CROSSSET; IN_FUNC] THEN
+  MESON_TAC[]);;
+
 let FUNC_FUNCTIONAL_ON = prove
  (`!f s. (FUNC) f s FUNCTIONAL_ON s`,
-  REWRITE_TAC[FUNCTIONAL_ON; IN_FUNC] THEN MESON_TAC[]);;
+  REWRITE_TAC[FUNCTIONAL_ON; IN_FUNC; FORALL_IN_FUNC; PAIRSET_PROJ] THEN
+  MESON_TAC[]);;
+
+let DOMAIN_FUNC = prove
+ (`!f s. DOMAIN ((FUNC) f s) = s`,
+  REWRITE_TAC[IN_DOMAIN; SET_EQ] THEN
+  REWRITE_TAC[IN_FUNC] THEN MESON_TAC[]);;
+
+let CODOMAIN_FUNC = prove
+ (`!f s. CODOMAIN ((FUNC) f s) = Replacement f s`,
+  REWRITE_TAC[IN_CODOMAIN; SET_EQ] THEN
+  REWRITE_TAC[IN_FUNC; IN_REPLACEMENT]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Function application.                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+let AP = new_definition
+  `f AP x = @y. x,,y In f`;;
+
+let AP_UNIQUE = prove
+ (`!f s x y. f FUNCTIONAL_ON s /\ x In s /\ x,,y In f ==> f AP x = y`,
+  REWRITE_TAC[FUNCTIONAL_ON; AP] THEN MESON_TAC[]);;
 
 let FUNC_AP = prove
  (`!x s. x In s ==> (FUNC) f s AP x = f x`,
   REPEAT STRIP_TAC THEN MATCH_MP_TAC AP_UNIQUE THEN
   ASM_MESON_TAC[FUNC_FUNCTIONAL_ON; IN_FUNC]);;
 
-(* ------------------------------------------------------------------------- *)
-(* Set of functions.                                                         *)
-(* ------------------------------------------------------------------------- *)
-
-let FUNCSET_DEF = new_definition
-  `s => t =
-   Separation (s Relset t)
-              (\r. !x. x In s ==> (!y. x,,y In r ==> y In t) /\
-                                  (?!y. x,,y In r))`;;
-
-let IN_FUNCSET = prove
- (`!f s t. f In s => t <=>
-           f Sbset s Crossset t /\
-           (!x. x In s ==> ?!y. x,,y In f)`,
-  REWRITE_TAC[FUNCSET_DEF; IN_SEPARATION; IN_RELSET; SBSET;
-              IN_CROSSSET_CASES] THEN
-  MESON_TAC[PAIRSET_EQ]);;
-
-let FUNCSET_SBSET_RELSET = prove
- (`!s t. s => t Sbset s Relset t`,
-  REWRITE_TAC[FUNCSET_DEF; SBSET; IN_SEPARATION] THEN MESON_TAC[]);;
-
-let FUNCSET_FUNCTIONAL_ON = prove
- (`!f s t. f In s => t ==> f FUNCTIONAL_ON s`,
-  REWRITE_TAC[IN_FUNCSET; FUNCTIONAL_ON; SBSET; IN_CROSSSET_CASES] THEN
-  MESON_TAC[]);;
-
-let FORALL_IN_FUNC = prove
- (`!f s. (!p. p In (FUNC) f s ==> P p) <=> (!x. x In s ==> P (x,,f x))`,
-  REWRITE_TAC[IN_FUNC_CASES] THEN MESON_TAC[]);;
-
-let FUNC_IN_FUNCSET = prove
- (`!f s t. (FUNC) f s In s => t <=> (!x. x In s ==> f x In t)`,
- REWRITE_TAC[IN_FUNCSET; SBSET; FORALL_IN_FUNC;
-             PAIRSET_IN_CROSSSET; IN_FUNC] THEN
- MESON_TAC[]);;
-
 let FUNCSET_AP_UNIQUE = time prove
  (`!f s t x y. f In s => t /\ x In s /\ x,,y In f ==> f AP x = y`,
-  MESON_TAC[AP_UNIQUE;FUNCSET_FUNCTIONAL_ON]);;
+  REWRITE_TAC[FUNCSET_IFF_FUNCTIONAL_ON] THEN MESON_TAC[AP_UNIQUE]);;

@@ -11,97 +11,49 @@ loadt "Lambda/make.ml";;
 (* ------------------------------------------------------------------------- *)
 
 let eterm_INDUCT,eterm_RECUR = define_type
-  "eterm  = EREF num
-          | EAPP eterm eterm
-          | EABS eterm
-          | ESUBST eterm eterm";;
-
-(* ------------------------------------------------------------------------- *)
-(* Free references occurring in a lambda term.                               *)
-(* ------------------------------------------------------------------------- *)
-
-(*
-let FREES_RULES,FREES_INDUCT,FREES_CASES = new_inductive_set
-  `(!i. i IN FREES (REF i)) /\
-   (!x y i. i IN FREES x ==> i IN FREES (APP x y)) /\
-   (!x y i. i IN FREES y ==> i IN FREES (APP x y)) /\
-   (!x i. SUC i IN FREES x ==> i IN FREES (ABS x))`;;
-
-let FREES_INVERSION = prove
- (`(!i j. j IN FREES (REF i) <=> j = i) /\
-   (!x y i. i IN FREES (APP x y) <=> i IN FREES x \/ i IN FREES y) /\
-   (!x i. i IN FREES (ABS x) <=> SUC i IN FREES x)`,
-  REPEAT STRIP_TAC THEN GEN_REWRITE_TAC LAND_CONV [FREES_CASES] THEN
-  REWRITE_TAC[distinctness "eterm"; injectivity "eterm"] THEN
-  MESON_TAC[]);;
-
-let FREES_CLAUSES = prove
- (`(!i. FREES (REF i) = {i}) /\
-   (!x y. FREES (APP x y) = FREES x UNION FREES y) /\
-   (!x. FREES (ABS x) = {i | SUC i IN FREES x})`,
-  REPEAT STRIP_TAC THEN GEN_REWRITE_TAC I [EXTENSION] THEN GEN_TAC THEN
-  GEN_REWRITE_TAC LAND_CONV [FREES_INVERSION] THEN SET_TAC[]);;
-*)
+  "eterm = EREF num
+         | EAPP eterm eterm
+         | EABS eterm
+         | ESUBST num eterm eterm";;
 
 (* ------------------------------------------------------------------------- *)
 (* Reindexing operator (functoriality).                                      *)
 (* ------------------------------------------------------------------------- *)
 
-let EREINDEX = new_recursive_definition eterm_RECUR
-  `(!f i. EREINDEX f (EREF i) = EREF (f i)) /\
-   (!f x y. EREINDEX f (EAPP x y) = EAPP (EREINDEX f x) (EREINDEX f y)) /\
-   (!f x. EREINDEX f (EABS x) = EABS (EREINDEX (SLIDE f) x)) /\
-   (!f x y. EREINDEX f (ESUBST x y) =
-            ESUBST (EREINDEX (SLIDE f) x) (EREINDEX f y))`;;
+let IREINDEX = new_recursive_definition eterm_RECUR
+  `(!f i. IREINDEX f (EREF i) = EREF (f i)) /\
+   (!f x y. IREINDEX f (EAPP x y) = EAPP (IREINDEX f x) (IREINDEX f y)) /\
+   (!f x. IREINDEX f (EABS x) = EABS (IREINDEX (SLIDE f) x)) /\
+   (!k f x y. IREINDEX f (ESUBST k x y) =
+            ESUBST k (IREINDEX (SLIDE f) x) (IREINDEX f y))`;;
 
-let EREINDEX_I = prove
- (`!x. EREINDEX I x = x`,
+let SLIDE_EXTENS = prove
+ (`!f g i. (!i. f i = g i) ==> SLIDE f i = SLIDE g i`,
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN SIMP_TAC[SLIDE]);;
+
+let IREINDEX_I = prove
+ (`!x. IREINDEX I x = x`,
   MATCH_MP_TAC eterm_INDUCT THEN
-  ASM_REWRITE_TAC[EREINDEX; injectivity "eterm"; SLIDE_I; I_THM]);;
+  ASM_REWRITE_TAC[IREINDEX; injectivity "eterm"; SLIDE_I; I_THM]);;
 
-(* 
-let EREINDEX_EXTENS = prove
- (`!x f g. (!i. i IN FREES x ==> f i = g i) ==> EREINDEX f x = EREINDEX g x`,
-  DBLAMBDA_INDUCT_TAC THEN REPEAT GEN_TAC THEN
-  REWRITE_TAC[FREES_INVERSION; EREINDEX] THEN REPEAT STRIP_TAC THEN
-  REWRITE_TAC[injectivity "eterm"] THEN ASM_SIMP_TAC[] THENL
-  [ASM_MESON_TAC[]; FIRST_X_ASSUM MATCH_MP_TAC] THEN
-  CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; SUC_INJ] THEN ASM_SIMP_TAC[]);;
-
-let EREINDEX_EXTENS_EQ = prove
- (`!x f g. EREINDEX f x = EREINDEX g x <=> (!i. i IN FREES x ==> f i = g i)`,
-  SUBGOAL_THEN
-    `!x f g i. EREINDEX f x = EREINDEX g x /\ i IN FREES x ==> f i = g i`
-    (fun th -> MESON_TAC[th; EREINDEX_EXTENS]) THEN
-  DBLAMBDA_INDUCT_TAC THEN
-  REWRITE_TAC[EREINDEX; injectivity "eterm"; FREES_INVERSION] THEN
-  SIMP_TAC[] THENL [ASM_MESON_TAC[]; REPEAT STRIP_TAC] THEN
-  SUBGOAL_THEN `SLIDE f (SUC i) = SLIDE g (SUC i)` MP_TAC THENL
-  [FIRST_X_ASSUM MATCH_MP_TAC THEN ASM_REWRITE_TAC[ETA_AX];
-   REWRITE_TAC[SLIDE; SUC_INJ]]);;
-
-let EREINDEX_ID = prove
- (`!x f. EREINDEX f x = x <=> (!i. i IN FREES x ==> f i = i)`,
-  REPEAT GEN_TAC THEN
-  GEN_REWRITE_TAC (LAND_CONV o RAND_CONV) [GSYM EREINDEX_I] THEN
-  REWRITE_TAC[EREINDEX_EXTENS_EQ; I_THM]);;
-*)
+let IREINDEX_SIMPLE_EXTENS = prove
+ (`!x f g. (!i. f i = g i) ==> IREINDEX f x = IREINDEX g x`,
+  MATCH_MP_TAC eterm_INDUCT THEN REWRITE_TAC[IREINDEX; injectivity "eterm"] THEN
+  MESON_TAC[SLIDE_EXTENS]);;
 
 let EREINDEX_EREINDEX = prove
- (`!x f g. EREINDEX g (EREINDEX f x) = EREINDEX (g o f) x`,
+ (`!x f g. IREINDEX g (IREINDEX f x) = IREINDEX (g o f) x`,
   MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[EREINDEX; o_THM; injectivity "eterm"] THEN
-  REWRITE_TAC[o_DEF; SLIDE_SLIDE; ETA_AX]);;
+  ASM_REWRITE_TAC[IREINDEX; o_THM; injectivity "eterm"] THEN
+  MATCH_MP_TAC IREINDEX_SIMPLE_EXTENS THEN REWRITE_TAC[o_THM; SLIDE_SLIDE]);;
 
-(*
-let EREINDEX_INJ = prove
+let IREINDEX_INJ = prove
  (`!x y f. (!i j. f i = f j ==> i = j)
-           ==> (EREINDEX f x = EREINDEX f y <=> x = y)`,
-  DBLAMBDA_INDUCT_TAC THEN CASES_GEN_TAC THEN
-  REWRITE_TAC[EREINDEX; distinctness "eterm"] THEN
-  REWRITE_TAC[injectivity "eterm"] THEN REPEAT STRIP_TAC THEN
+           ==> (IREINDEX f x = IREINDEX f y <=> x = y)`,
+  MATCH_MP_TAC eterm_INDUCT THEN REPEAT CONJ_TAC THEN FIX_TAC "y" THEN
+  CASES_TAC `y:eterm` THEN REPEAT STRIP_TAC THEN
+  ASM_REWRITE_TAC[IREINDEX; distinctness "eterm"; injectivity "eterm"] THEN
   ASM_MESON_TAC[SLIDE_INJ]);;
-*)
 
 (* ------------------------------------------------------------------------- *)
 (* Derivation operator (needed for the substitution right next).             *)
@@ -109,18 +61,16 @@ let EREINDEX_INJ = prove
 
 let EDERIV = new_recursive_definition num_RECURSION
   `(!f. EDERIV f 0 = EREF 0) /\
-   (!f i. EDERIV f (SUC i) = EREINDEX SUC (f i))`;;
+   (!f i. EDERIV f (SUC i) = IREINDEX SUC (f i))`;;
 
 let EDERIV_EREF = prove
  (`EDERIV EREF = EREF`,
-  REWRITE_TAC[FUN_EQ_THM] THEN INDUCT_TAC THEN REWRITE_TAC[EDERIV; EREINDEX]);;
+  REWRITE_TAC[FUN_EQ_THM] THEN INDUCT_TAC THEN REWRITE_TAC[EDERIV; IREINDEX]);;
 
-(* 
 let EDERIV_EXTENS = prove
  (`!f g i. EDERIV f i = EDERIV g i <=> i = 0 \/ f (PRE i) = g (PRE i)`,
   GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN
-  REWRITE_TAC[EDERIV; NOT_SUC; PRE] THEN SIMP_TAC[EREINDEX_INJ; SUC_INJ]);;
- *)
+  REWRITE_TAC[EDERIV; NOT_SUC; PRE] THEN SIMP_TAC[IREINDEX_INJ; SUC_INJ]);;
 
 let EDERIV_SLIDE = prove
  (`!f g i. EDERIV g (SLIDE f i) = EDERIV (g o f) i`,
@@ -128,81 +78,99 @@ let EDERIV_SLIDE = prove
   REWRITE_TAC[EDERIV; SLIDE; o_THM]);;
 
 let EDERIV_O_SUC = prove
- (`!f. EDERIV f o SUC = EREINDEX SUC o f`,
+ (`!f. EDERIV f o SUC = IREINDEX SUC o f`,
   REWRITE_TAC[FUN_EQ_THM; o_THM; EDERIV]);;
+
+
+let SUBDERIV_RULES,SUBDERIV_INDUCT,SUBDERIV_CASES = new_inductive_definition
+  `(!k i. SUBDERIV k (EREF i)) /\
+   (!k x y. SUBDERIV k x /\ SUBDERIV k y ==> SUBDERIV k (EAPP x y)) /\
+   (!k x. SUBDERIV (SUC k) x ==> SUBDERIV k (EABS x)) /\
+   (!k x y. SUBDERIV (SUC k) x /\ SUBDERIV k y
+            ==> SUBDERIV k (ESUBST k x y))`;;
+
+let esubst_TYBIJ =
+  let eth = prove
+   (`?p. SUBDERIV (FST p) (SND p)`,
+    REWRITE_TAC[EXISTS_PAIR_THM] THEN
+    MAP_EVERY EXISTS_TAC [`0`; `EREF 0`] THEN
+    REWRITE_TAC[SUBDERIV_RULES]) in
+  new_type_definition "esubst" ("MK_ESUBST","DEST_ESUBST") eth;;
+
+
 
 (* ------------------------------------------------------------------------- *)
 (* Parallel capture-avoiding substitution (higher-order style).              *)
 (* ------------------------------------------------------------------------- *)
 
-let MSUBST = new_recursive_definition eterm_RECUR
-  `(!f i. MSUBST f (EREF i) = f i) /\
-   (!f x y. MSUBST f (EAPP x y) = EAPP (MSUBST f x) (MSUBST f y)) /\
-   (!f x. MSUBST f (EABS x) = EABS (MSUBST (EDERIV f) x)) /\
-   (!f x y. MSUBST f (ESUBST x y) =
-            ESUBST (MSUBST (EDERIV f) x) (MSUBST f y))`;;
+let ISUBST = new_recursive_definition eterm_RECUR
+  `(!f i. ISUBST f (EREF i) = f i) /\
+   (!f x y. ISUBST f (EAPP x y) = EAPP (ISUBST f x) (ISUBST f y)) /\
+   (!f x. ISUBST f (EABS x) = EABS (ISUBST (EDERIV f) x)) /\
+   (!f x y. ISUBST f (ESUBST k x y) =
+            ESUBST k (ISUBST (ITER (SUC K) EDERIV f) x) (ISUBST f y))`;;
 
 let MSUBST_EREF = prove
- (`!x. MSUBST EREF x = x`,
+ (`!x. ISUBST EREF x = x`,
   MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[MSUBST; EDERIV_EREF]);;
+  ASM_REWRITE_TAC[ISUBST; EDERIV_EREF]);;
 
 (* let MSUBST_EXTENS = prove
- (`!x f g. MSUBST f x = MSUBST g x <=> (!i. i IN FREES x ==> f i = g i)`,
-  ASM_REWRITE_TAC[MSUBST; FREES_INVERSION; DERIV_EXTENS;
+ (`!x f g. ISUBST f x = ISUBST g x <=> (!i. i IN FREES x ==> f i = g i)`,
+  ASM_REWRITE_TAC[ISUBST; FREES_INVERSION; DERIV_EXTENS;
                   injectivity "eterm"; FORALL_UNWIND_THM2] THENL
   [MESON_TAC[]; REPEAT GEN_TAC] THEN
   GEN_REWRITE_TAC LAND_CONV [FORALL_NUM_THM] THEN
   REWRITE_TAC[PRE; NOT_SUC]);;
 
 let SUBST_REF_EQ = prove
- (`!x f. MSUBST f x = x <=> (!i. i IN FREES x ==> f i = REF i)`,
+ (`!x f. ISUBST f x = x <=> (!i. i IN FREES x ==> f i = REF i)`,
   REPEAT GEN_TAC THEN
-  TRANS_TAC EQ_TRANS `MSUBST f x = MSUBST REF x` THEN CONJ_TAC THENL
+  TRANS_TAC EQ_TRANS `ISUBST f x = ISUBST REF x` THEN CONJ_TAC THENL
   [REWRITE_TAC[SUBST_REF]; REWRITE_TAC[SUBST_EXTENS]]);;
 *)
 
 let MSUBST_EREINDEX = prove
- (`!x f g. MSUBST g (EREINDEX f x) = MSUBST (g o f) x`,
+ (`!x f g. ISUBST g (IREINDEX f x) = ISUBST (g o f) x`,
   MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[MSUBST; EREINDEX; o_THM; injectivity "eterm"] THEN
+  ASM_REWRITE_TAC[ISUBST; IREINDEX; o_THM; injectivity "eterm"] THEN
   REWRITE_TAC[o_DEF; EDERIV_SLIDE; ETA_AX]);;
 
 let EREINDEX_SLIDE = prove
- (`!g f i. EREINDEX (SLIDE g) (EDERIV f i) = EDERIV (EREINDEX g o f) i`,
+ (`!g f i. IREINDEX (SLIDE g) (EDERIV f i) = EDERIV (IREINDEX g o f) i`,
   GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN
-  REWRITE_TAC[EDERIV; EREINDEX; SLIDE; o_THM; EREINDEX_EREINDEX] THEN
+  REWRITE_TAC[EDERIV; IREINDEX; SLIDE; o_THM; EREINDEX_EREINDEX] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM] THEN
   CASES_GEN_TAC THEN REWRITE_TAC[SLIDE]);;
 
 let EREINDEX_MSUBST = prove
- (`!x f g. EREINDEX g (MSUBST f x) = MSUBST (EREINDEX g o f) x`,
+ (`!x f g. IREINDEX g (ISUBST f x) = ISUBST (IREINDEX g o f) x`,
   MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[EREINDEX; MSUBST; o_THM; injectivity "eterm"] THEN
+  ASM_REWRITE_TAC[IREINDEX; ISUBST; o_THM; injectivity "eterm"] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN
   REWRITE_TAC[FUN_EQ_THM; o_THM; EREINDEX_SLIDE]);;
 
 let ESUBST_EDERIV = prove
- (`!f g i. MSUBST (EDERIV g) (EDERIV f i) = EDERIV (MSUBST g o f) i`,
+ (`!f g i. ISUBST (EDERIV g) (EDERIV f i) = EDERIV (ISUBST g o f) i`,
   GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN
-  REWRITE_TAC[EDERIV; MSUBST; MSUBST_EREINDEX; EREINDEX_MSUBST; o_THM] THEN
+  REWRITE_TAC[EDERIV; ISUBST; MSUBST_EREINDEX; EREINDEX_MSUBST; o_THM] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; EDERIV]);;
 
 let MSUBST_MSUBST = prove
- (`!x f g. MSUBST g (MSUBST f x) = MSUBST (MSUBST g o f) x`,
+ (`!x f g. ISUBST g (ISUBST f x) = ISUBST (ISUBST g o f) x`,
   MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[MSUBST; o_THM; injectivity "eterm"] THEN
+  ASM_REWRITE_TAC[ISUBST; o_THM; injectivity "eterm"] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN
   REWRITE_TAC[FUN_EQ_THM; o_THM; ESUBST_EDERIV]);;
 
 let EREINDEX_EQ_SUBST = prove
- (`!f. EREINDEX f = MSUBST (EREF o f)`,
-  SUBGOAL_THEN `!x f. EREINDEX f x = MSUBST (EREF o f) x`
+ (`!f. IREINDEX f = ISUBST (EREF o f)`,
+  SUBGOAL_THEN `!x f. IREINDEX f x = ISUBST (EREF o f) x`
     (fun th -> REWRITE_TAC[th; FUN_EQ_THM]) THEN
   MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[EREINDEX; MSUBST; o_THM; injectivity "eterm"] THEN
+  ASM_REWRITE_TAC[IREINDEX; ISUBST; o_THM; injectivity "eterm"] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM] THEN
-  CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; EDERIV; o_THM; EREINDEX]);;
+  CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; EDERIV; o_THM; IREINDEX]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Classical definition of linear (capture-avoiding) substitution.           *)
@@ -233,9 +201,9 @@ let MSUBST1 = new_definition
 (* ------------------------------------------------------------------------- *)
 
 let MSHIFTI_EQ_EREINDEX = prove
- (`!n t k. MSHIFTI k n t = EREINDEX (ITER k SLIDE ((+) n)) t`,
+ (`!n t k. MSHIFTI k n t = IREINDEX (ITER k SLIDE ((+) n)) t`,
   GEN_TAC THEN MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[MSHIFTI; EREINDEX; injectivity "eterm"; ITER_SLIDE] THEN
+  ASM_REWRITE_TAC[MSHIFTI; IREINDEX; injectivity "eterm"; ITER_SLIDE] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM] THEN
   CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; ITER]);;
 
@@ -256,28 +224,28 @@ let ITER_EDERIV = prove
   ASM_CASES_TAC `n = i:num` THEN ASM_REWRITE_TAC[MSHIFTI_EQ_EREINDEX] THENL
   [REWRITE_TAC[EREINDEX_EREINDEX; ITER] THEN
    AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; ADD];
-   COND_CASES_TAC THEN ASM_REWRITE_TAC[EREINDEX; injectivity "eterm"] THEN
+   COND_CASES_TAC THEN ASM_REWRITE_TAC[IREINDEX; injectivity "eterm"] THEN
    ASM_ARITH_TAC]);;
 
 let MSUBSTI1_EQ_MSUBST = prove
  (`!u t i. MSUBSTI1 i u t =
-           MSUBST (ITER i EDERIV (\i. if i = 0 then u else EREF (i - 1))) t`,
+           ISUBST (ITER i EDERIV (\i. if i = 0 then u else EREF (i - 1))) t`,
   GEN_TAC THEN MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[MSUBST1; MSUBSTI1; MSUBST; injectivity "eterm"] THEN
+  ASM_REWRITE_TAC[MSUBST1; MSUBSTI1; ISUBST; injectivity "eterm"] THEN
   REWRITE_TAC[ITER_EDERIV; GSYM ADD1; ITER]);;
 (* 
 let MSUBST_PUSHENV_LEMMA = prove
- (`!f x i. MSUBST (PUSHENV (MSUBST f y) EREF) (EDERIV f i) =
-           MSUBST f (PUSHENV y EREF i)`,
+ (`!f x i. ISUBST (PUSHENV (ISUBST f y) EREF) (EDERIV f i) =
+           ISUBST f (PUSHENV y EREF i)`,
   GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN
-  REWRITE_TAC[PUSHENV; EDERIV; MSUBST; MSUBST_EREINDEX] THEN
-  TRANS_TAC EQ_TRANS `MSUBST EREF (f (n:num))` THEN
+  REWRITE_TAC[PUSHENV; EDERIV; ISUBST; MSUBST_EREINDEX] THEN
+  TRANS_TAC EQ_TRANS `ISUBST EREF (f (n:num))` THEN
   CONJ_TAC THENL [ALL_TAC; REWRITE_TAC[MSUBST_EREF]] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN
-  REWRITE_TAC[FUN_EQ_THM; o_THM; MSUBST; PUSHENV]);; *)
+  REWRITE_TAC[FUN_EQ_THM; o_THM; ISUBST; PUSHENV]);; *)
 
 let MSUBST1_EQ_MSUBST = prove
- (`!t u. MSUBST1 u t = MSUBST (PUSHENV u EREF) t`,
+ (`!t u. MSUBST1 u t = ISUBST (PUSHENV u EREF) t`,
   REPEAT GEN_TAC THEN REWRITE_TAC[MSUBST1; MSUBSTI1_EQ_MSUBST; ITER] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN
   REWRITE_TAC[FUN_EQ_THM] THEN CASES_GEN_TAC THEN
@@ -289,10 +257,10 @@ let MSUBST1_MSUBST1 = prove
   REWRITE_TAC[MSUBST1_EQ_MSUBST; MSUBSTI1_EQ_MSUBST; MSUBST_MSUBST;
               ITER_BINARY; o_THM] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM] THEN
-  CASES_GEN_TAC THEN REWRITE_TAC[EDERIV; MSUBST; PUSHENV; MSUBST_EREINDEX] THEN
-  CASES_TAC `n:num` THEN REWRITE_TAC[PUSHENV; NOT_SUC; MSUBST; o_THM] THENL
+  CASES_GEN_TAC THEN REWRITE_TAC[EDERIV; ISUBST; PUSHENV; MSUBST_EREINDEX] THEN
+  CASES_TAC `n:num` THEN REWRITE_TAC[PUSHENV; NOT_SUC; ISUBST; o_THM] THENL
   [ALL_TAC; REWRITE_TAC[injectivity "eterm"] THEN ARITH_TAC] THEN
-  TRANS_TAC EQ_TRANS `MSUBST EREF w` THEN
+  TRANS_TAC EQ_TRANS `ISUBST EREF w` THEN
   CONJ_TAC THENL [REWRITE_TAC[MSUBST_EREF]; ALL_TAC] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; PUSHENV]);;
 
@@ -309,19 +277,19 @@ let DBLAMBDA_OF_ETERM = new_recursive_definition eterm_RECUR
           SUBST1 (DBLAMBDA_OF_ETERM y) (DBLAMBDA_OF_ETERM x))`;;
 
 let DBLAMBDA_OF_ETERM_EREINDEX = prove
- (`!x f. DBLAMBDA_OF_ETERM (EREINDEX f x) = REINDEX f (DBLAMBDA_OF_ETERM x)`,
+ (`!x f. DBLAMBDA_OF_ETERM (IREINDEX f x) = REINDEX f (DBLAMBDA_OF_ETERM x)`,
   MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[DBLAMBDA_OF_ETERM; EREINDEX; REINDEX;
+  ASM_REWRITE_TAC[DBLAMBDA_OF_ETERM; IREINDEX; REINDEX;
                   injectivity "dblambda"] THEN
   REWRITE_TAC[SUBST1_EQ_SUBST; SUBST_REINDEX; REINDEX_SUBST] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM] THEN
   CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; PUSHENV; REINDEX]);;
 
 let DBLAMBDA_OF_ETERM_MSUBST = prove
- (`!x f. DBLAMBDA_OF_ETERM (MSUBST f x) =
+ (`!x f. DBLAMBDA_OF_ETERM (ISUBST f x) =
          SUBST (DBLAMBDA_OF_ETERM o f) (DBLAMBDA_OF_ETERM x)`,
   MATCH_MP_TAC eterm_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[DBLAMBDA_OF_ETERM; MSUBST; SUBST; o_THM;
+  ASM_REWRITE_TAC[DBLAMBDA_OF_ETERM; ISUBST; SUBST; o_THM;
                   injectivity "dblambda"; SUBST1_EQ_SUBST;
                   DBLAMBDA_OF_ETERM_EREINDEX; SUBST_SUBST] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM] THEN

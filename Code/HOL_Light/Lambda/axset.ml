@@ -241,7 +241,7 @@ let set_axset_rewrites,extend_axset_rewrites,axset_rewrites,axset_net =
 
 extend_axset_rewrites
   [SBSET; SBSET_REFL; SBSET_EMPTYSET; EMPTYSET_SBSET; SBSET_SINGLETON;
-   IN_EMPTYSET; IN_SEPARATION; IN_POWERSET; IN_UNIONSET;
+   IN_EMPTYSET; IN_SEPARATION; IN_POWERSET; IN_UNIONSET; IN_REPLACEMENT;
    IN_SINGLETON; IN_UN; IN_INT];;
 
 let ONCE_PURE_AXSET_REWRITE_CONV thl =
@@ -317,11 +317,29 @@ extend_axset_rewrites
   [UN_EMPTYSET; UN_IDEMP; UN_EQ_EMPTYSET; FORALL_IN_UN; EXISTS_IN_UN;
    INT_EMPTYSET; INT_IDEMP];;
 
+let FORALL_IN_UNIONSET = ST_RULE
+  `!P s. (!x. x In Unionset s ==> P x) <=>
+         (!t. t In s ==> !x. x In t ==> P x)`;;
+
+let EXISTS_IN_UNIONSET = ST_RULE
+  `!P s. (?x. x In Unionset s /\ P x) <=>
+         (?t. t In s /\ ?x. x In t /\ P x)`;;
+
+let FORALL_IN_REPLACEMENT = ST_RULE
+  `!P s f. (!y. y In Replacement f s ==> P y) <=>
+           (!x. x In s ==> P (f x))`;;
+
+let EXISTS_IN_REPLACEMENT = ST_RULE
+  `!P s f. (?y. y In Replacement f s /\ P y) <=>
+           (?x. x In s /\ P (f x))`;;
+
+extend_axset_rewrites
+  [FORALL_IN_UNIONSET; EXISTS_IN_UNIONSET;
+   FORALL_IN_REPLACEMENT; EXISTS_IN_REPLACEMENT];;
+
 (* ------------------------------------------------------------------------- *)
 (* Simple consequences of the axiom of foundations.                          *)
 (* ------------------------------------------------------------------------- *)
-
-search[`s Int Singleton s`];;
 
 let INT_SINGLETON_DISJOINT = prove
  (`!s. s Int Singleton s = {}`,
@@ -395,18 +413,10 @@ let UNIONSET_SINGLETON = ST_RULE
 let UNIONSET_UN = ST_RULE
   `!s t. Unionset (s Un t) = Unionset s Un Unionset t`;;
 
-let FORALL_IN_UNIONSET = ST_RULE
-  `!P s. (!x. x In Unionset s ==> P x) <=>
-         (!t. t In s ==> !x. x In t ==> P x)`;;
-
-let EXISTS_IN_UNIONSET = ST_RULE
-  `!P s. (?x. x In Unionset s /\ P x) <=>
-         (?t. t In s /\ ?x. x In t /\ P x)`;;
-
 extend_axset_rewrites
   [INSSET_ABSORPTION_IFF; INSSET_SYM; INSSET_IDEMP; INSSET_NOT_EMPTY;
    FORALL_IN_INSSET; EXISTS_IN_INSSET; UNIONSET_EMPTYSET; UNIONSET_SINGLETON;
-   UNIONSET_UN; FORALL_IN_UNIONSET; EXISTS_IN_UNIONSET];;
+   UNIONSET_UN];;
 
 (* ------------------------------------------------------------------------- *)
 (* Set difference.                                                           *)
@@ -768,7 +778,8 @@ let DOMAIN_FUNCTIONAL_ON = prove
 
 let FUNCTIONAL_ON_IFF_FUNCSET = prove
  (`!f s. f FUNCTIONAL_ON s <=> f In s => CODOMAIN f`,
-  REWRITE_TAC[FUNCTIONAL_ON; IN_FUNCSET; IN_CODOMAIN; SBSET; IN_CROSSSET_CASES] THEN
+  REWRITE_TAC[FUNCTIONAL_ON; IN_FUNCSET; IN_CODOMAIN;
+              SBSET; IN_CROSSSET_CASES] THEN
   MESON_TAC[PAIRSET_EQ]);;
 
 let FUNCSET_IFF_FUNCTIONAL_ON = prove
@@ -848,3 +859,61 @@ let FUNC_AP = prove
 let FUNCSET_AP_UNIQUE = time prove
  (`!f s t x y. f In s => t /\ x In s /\ x,,y In f ==> f AP x = y`,
   REWRITE_TAC[FUNCSET_IFF_FUNCTIONAL_ON] THEN MESON_TAC[AP_UNIQUE]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Product set (i.e., dependent product).                                    *)
+(* ------------------------------------------------------------------------- *)
+
+let PRODSET_DEF = new_definition
+  `Prodset s t =
+   Separation (s => Unionset(Replacement t s))
+              (\f. !x. x In s ==> f AP x In t x)`;;
+
+let IN_PRODSET = prove
+ (`!f. f In Prodset s t <=>
+       f FUNCTIONAL_ON s /\
+       (!x. x In s ==> f AP x In t x)`,
+  GEN_TAC THEN EQ_TAC THEN REWRITE_TAC[PRODSET_DEF; IN_SEPARATION] THENL
+  [REWRITE_TAC[IN_SEPARATION; FUNCSET_IFF_FUNCTIONAL_ON] THEN
+   STRIP_TAC THEN ASM_REWRITE_TAC[];
+   ALL_TAC] THEN
+  INTRO_TAC "f fx" THEN ASM_REWRITE_TAC[FUNCSET_IFF_FUNCTIONAL_ON] THEN
+  REWRITE_TAC[SBSET; IN_CODOMAIN; IN_UNIONSET; IN_REPLACEMENT] THEN
+  INTRO_TAC "![y]; @x. xy" THEN EXISTS_TAC `t (x:set):set` THEN
+  CLAIM_TAC "x" `x In s` THENL [ASM_MESON_TAC[FUNCTIONAL_ON]; ALL_TAC] THEN
+  USE_THEN "x" (HYP_TAC "fx" o C MATCH_MP) THEN
+  SUBGOAL_THEN `f AP x = y` SUBST_ALL_TAC THENL
+  [MATCH_MP_TAC AP_UNIQUE THEN ASM_MESON_TAC[FUNCTIONAL_ON];
+   ASM_MESON_TAC[]]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Grothendieck universes.                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+let GROTHENDIECK_UNIVERSE = new_definition
+  `GROTHENDIECK_UNIVERSE u <=>
+   (!x s. x In s /\ s In u ==> x In u) /\
+   (!x y. x In u /\ y In u ==> {x,y} In u) /\
+   (!x. x In u ==> Powerset x In u) /\
+   (!s t. s In u /\ (!x. x In s ==> t x In u)
+          ==> Unionset (Replacement t s) In u)`;;
+
+let GUNIV_IN_TRANS = prove
+ (`!u x s. GROTHENDIECK_UNIVERSE u /\ x In s /\ s In u ==> x In u`,
+  MESON_TAC[GROTHENDIECK_UNIVERSE]);;
+
+let GUNIV_2 = prove
+ (`!u x y.
+         GROTHENDIECK_UNIVERSE u /\ x In u /\ y In u
+         ==> x INSERT y INSERT {} In u`,
+  MESON_TAC[GROTHENDIECK_UNIVERSE]);;
+
+let GUNIV_POWERSET = prove
+ (`!u x. GROTHENDIECK_UNIVERSE u /\ x In u ==> Powerset x In u`,
+  MESON_TAC[GROTHENDIECK_UNIVERSE]);;
+
+let GUNIV_UNIONFAM = prove
+ (`!u s t.
+         GROTHENDIECK_UNIVERSE u /\ s In u /\ (!x. x In s ==> t x In u)
+         ==> Unionset (Replacement t s) In u`,
+  MESON_TAC[GROTHENDIECK_UNIVERSE]);;

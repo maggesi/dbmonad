@@ -36,22 +36,6 @@ parse_as_infix("AP",get_infix_status "$");;            (* Funct application *)
 parse_as_binder "FUNC";;                               (* Funct abstraction *)
 
 (* ------------------------------------------------------------------------- *)
-(* Sintax for the empty set, insertion and set enumeration.                  *)
-(* ------------------------------------------------------------------------- *)
-
-make_overloadable "EMPTY" `:A`;;
-make_overloadable "INSERT" `:A->B->B`;;
-
-let prioritize_hol_set() =
-  overload_interface("EMPTY",mk_mconst("EMPTY",`:A->bool`));
-  overload_interface("INSERT",mk_mconst("INSERT",`:A->(A->bool)->(A->bool)`));;
-
-prioritize_hol_set();;
-
-overload_interface("EMPTY",`Emptyset:set`);;
-overload_interface("INSERT",`Insset:set->set->set`);;
-
-(* ------------------------------------------------------------------------- *)
 (* Universe of sets.                                                         *)
 (* ------------------------------------------------------------------------- *)
 
@@ -79,11 +63,11 @@ let INTERSET_DEF = new_definition
   `s Int t = Separation s (\x. x In t)`;;
 
 let SINGLETON_DEF = new_definition
-  `Singleton s = Replacement (\x. s) (Powerset {})`;;
+  `Singleton s = Replacement (\x. s) (Powerset Emptyset)`;;
 
 let UN_DEF = new_definition
-  `s Un t = Unionset (Replacement (\x. if x = {} then s else t)
-                                  (Powerset (Singleton {})))`;;
+  `s Un t = Unionset (Replacement (\x. if x = Emptyset then s else t)
+                                  (Powerset (Singleton Emptyset)))`;;
 
 (* ------------------------------------------------------------------------- *)
 (* Axioms.                                                                   *)
@@ -93,7 +77,7 @@ let SET_EQ = new_axiom
   `!s t. s = t <=> (!x. x In s <=> x In t)`;;
 
 let IN_EMPTYSET = new_axiom
-  `!x. ~(x In {})`;;
+  `!x. ~(x In Emptyset)`;;
 
 let IN_UNIONSET = new_axiom
   `!s x. x In Unionset s <=> ?t. x In t /\ t In s`;;
@@ -108,10 +92,26 @@ let IN_REPLACEMENT = new_axiom
   `!f s y. y In Replacement f s <=> ?x. x In s /\ y = f x`;;
 
 let FOUNDATION_AX = new_axiom
-  `!s. ~(s = {}) ==> ?x. x In s /\ x Int s = {}`;;
+  `!s. ~(s = Emptyset) ==> ?x. x In s /\ x Int s = Emptyset`;;
 
 let INFINITY_AX = new_axiom
-  `?s. {} In s /\ !x. x In s ==> x Un Singleton x In s`;;
+  `?s. Emptyset In s /\ !x. x In s ==> x Un Singleton x In s`;;
+
+(* ------------------------------------------------------------------------- *)
+(* Syntax for the empty set, insertion and set enumeration.                  *)
+(* ------------------------------------------------------------------------- *)
+
+make_overloadable "EMPTY" `:A`;;
+make_overloadable "INSERT" `:A->B->B`;;
+
+let prioritize_hol_set() =
+  overload_interface("EMPTY",mk_mconst("EMPTY",`:A->bool`));
+  overload_interface("INSERT",mk_mconst("INSERT",`:A->(A->bool)->(A->bool)`));;
+
+prioritize_hol_set();;
+
+overload_interface("EMPTY",`Emptyset:set`);;
+overload_interface("INSERT",`Insset:set->set->set`);;
 
 (* ------------------------------------------------------------------------- *)
 (* Basic properties about the subset relation.                               *)

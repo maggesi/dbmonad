@@ -699,12 +699,12 @@ let BOOLSET_CASES = prove
  (`!b. b In boolset ==> b = True \/ b = False`,
   MESON_TAC[BOOLSET_THM]);;
 
-let FORALL_BOOLSET = prove
+let FORALL_IN_BOOLSET = prove
  (`!P. (!b. b In boolset ==> P b) <=> P True /\ P False`,
   GEN_TAC THEN EQ_TAC THENL
   [MESON_TAC[BOOLSET_RULES]; MESON_TAC[BOOLSET_CASES]]);;
 
-let EXISTS_BOOLSET = prove
+let EXISTS_IN_BOOLSET = prove
  (`!P. (?b. b In boolset /\ P b) <=> P True \/ P False`,
   GEN_TAC THEN EQ_TAC THENL
   [MESON_TAC[BOOLSET_CASES]; MESON_TAC[BOOLSET_RULES]]);;
@@ -954,3 +954,60 @@ let GUNIV_UNIONFAM = prove
          GROTHENDIECK_UNIVERSE u /\ s In u /\ (!x. x In s ==> t x In u)
          ==> Unionset (Replacement t s) In u`,
   MESON_TAC[GROTHENDIECK_UNIVERSE]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Axiomatic sets associated to HOL sets (predicates).                       *)
+(* ------------------------------------------------------------------------- *)
+
+let IS_SETOF = new_definition
+  `IS_SETOF (s:A->bool, t:set, enc:A->set, dec:set->A) <=>
+   (!x. x IN s ==> enc x In t /\ dec (enc x) = x) /\
+   (!y. y In t ==> dec y IN s /\ enc (dec y) = y)`;;
+
+(* prioritize_hol_set();;
+prioritize_axset();; *)
+
+let setof_tybij =
+  (new_type_definition "setof" ("mk_setof","dest_setof") o prove)
+  (`?p:(A->bool)#set#(A->set)#(set->A). IS_SETOF p`,
+   EXISTS_TAC `({}:A->bool),{}:set,(\x:A.{}),(\y:set. ARB:A)` THEN
+   REWRITE_TAC[IS_SETOF; NOT_IN_EMPTY; IN_EMPTYSET]);;
+
+let holset = new_definition
+  `holset (p:A setof) = FST (dest_setof p)`;;
+
+let setof = new_definition
+  `setof (p:A setof) = FST (SND (dest_setof p))`;;
+
+let setencode = new_definition
+  `setencode (p:A setof) = FST (SND (SND (dest_setof p)))`;;
+
+let setdecode = new_definition
+  `setdecode (p:A setof) = SND (SND (SND (dest_setof p)))`;;
+
+let SETOF_CASES = prove
+ (`!p:A setof. ?q.
+     p = mk_setof q /\ IS_SETOF q`,
+  MESON_TAC[setof_tybij]);;
+
+let FORALL_SETOF = prove
+ (`!P. (!p:A setof. P p) <=> (!q. IS_SETOF q ==> P (mk_setof q))`,
+  MESON_TAC[setof_tybij]);;
+
+let EXISTS_SETOF = prove
+ (`!P. (?p:A setof. P p) <=> (?q. IS_SETOF q /\ P (mk_setof q))`,
+  MESON_TAC[setof_tybij]);;
+
+let SETDECODE_SETENCODE,SETENCODE_SETDECODE = (CONJ_PAIR o prove)
+ (`(!p x:A. x IN holset p
+            ==> setencode p x In setof p /\
+                setdecode p (setencode p x) = x) /\
+   (!p:A setof y. y In setof p
+                  ==> setdecode p y IN holset p /\
+                      setencode p (setdecode p y) = y)`,
+  REWRITE_TAC[GSYM FORALL_AND_THM] THEN
+  REWRITE_TAC[FORALL_SETOF; FORALL_PAIR_THM] THEN
+  INTRO_TAC "![s] [t] [enc] [dec]; p" THEN
+  HYP_TAC "p -> p'" (REWRITE_RULE[setof_tybij]) THEN
+  ASM_REWRITE_TAC[holset; setof; setencode; setdecode] THEN
+  HYP_TAC "p: p1 p2" (REWRITE_RULE[IS_SETOF]) THEN ASM_MESON_TAC[]);;

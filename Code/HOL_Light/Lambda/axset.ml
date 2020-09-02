@@ -673,6 +673,43 @@ let COUNTABLE_IMP_EXISTS_SET = prove
   ASM_MESON_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
+(* Set of booleans.                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+let BOOLSET_THM = (new_specification ["boolset";"True";"False"] o prove)
+ (`?b t f. t In b /\
+           f In b /\
+           ~(t = f) /\
+           (!x. x In b ==> x = t \/ x = f)`,
+  EXISTS_TAC `Separation nat (\n. n = nat_of_num 0 \/ n = nat_of_num 1)` THEN
+  EXISTS_TAC `nat_of_num 0` THEN
+  EXISTS_TAC `nat_of_num 1` THEN
+  REWRITE_TAC[IN_SEPARATION; NAT_OF_NUM_IN_NAT; NAT_OF_NUM_EQ; ARITH_EQ] THEN
+  MESON_TAC[]);;
+
+let BOOLSET_RULES = prove
+ (`True In boolset /\ False In boolset`,
+  MESON_TAC[BOOLSET_THM]);;
+
+let BOOLSET_DISTINCTNESS = prove
+ (`~(True = False)`,
+  MESON_TAC[BOOLSET_THM]);;
+
+let BOOLSET_CASES = prove
+ (`!b. b In boolset ==> b = True \/ b = False`,
+  MESON_TAC[BOOLSET_THM]);;
+
+let FORALL_BOOLSET = prove
+ (`!P. (!b. b In boolset ==> P b) <=> P True /\ P False`,
+  GEN_TAC THEN EQ_TAC THENL
+  [MESON_TAC[BOOLSET_RULES]; MESON_TAC[BOOLSET_CASES]]);;
+
+let EXISTS_BOOLSET = prove
+ (`!P. (?b. b In boolset /\ P b) <=> P True \/ P False`,
+  GEN_TAC THEN EQ_TAC THENL
+  [MESON_TAC[BOOLSET_CASES]; MESON_TAC[BOOLSET_RULES]]);;
+
+(* ------------------------------------------------------------------------- *)
 (* Binary relations.                                                         *)
 (* ------------------------------------------------------------------------- *)
 

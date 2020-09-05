@@ -695,19 +695,21 @@ let BOOLSET_DISTINCTNESS = prove
  (`~(True = False)`,
   MESON_TAC[BOOLSET_THM]);;
 
+let IN_BOOLSET = prove
+ (`!b. b In boolset <=> b = True \/ b = False`,
+  MESON_TAC[BOOLSET_THM]);;
+
 let BOOLSET_CASES = prove
  (`!b. b In boolset ==> b = True \/ b = False`,
-  MESON_TAC[BOOLSET_THM]);;
+  REWRITE_TAC[IN_BOOLSET]);;
 
 let FORALL_IN_BOOLSET = prove
  (`!P. (!b. b In boolset ==> P b) <=> P True /\ P False`,
-  GEN_TAC THEN EQ_TAC THENL
-  [MESON_TAC[BOOLSET_RULES]; MESON_TAC[BOOLSET_CASES]]);;
+  REWRITE_TAC[IN_BOOLSET] THEN MESON_TAC[]);;
 
 let EXISTS_IN_BOOLSET = prove
  (`!P. (?b. b In boolset /\ P b) <=> P True \/ P False`,
-  GEN_TAC THEN EQ_TAC THENL
-  [MESON_TAC[BOOLSET_CASES]; MESON_TAC[BOOLSET_RULES]]);;
+  REWRITE_TAC[IN_BOOLSET] THEN MESON_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Binary relations.                                                         *)

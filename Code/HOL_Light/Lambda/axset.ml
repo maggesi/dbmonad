@@ -6,6 +6,7 @@
 
 (*
 time loadt "Lambda/axset.ml";;
+needs "Library/card.ml";;
 *)
 
 let LABEL_ABBREV_TAC tm : tactic =
@@ -1013,3 +1014,62 @@ let SETDECODE_SETENCODE,SETENCODE_SETDECODE = (CONJ_PAIR o prove)
   HYP_TAC "p -> p'" (REWRITE_RULE[setof_tybij]) THEN
   ASM_REWRITE_TAC[holset; setof; setencode; setdecode] THEN
   HYP_TAC "p: p1 p2" (REWRITE_RULE[IS_SETOF]) THEN ASM_MESON_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* De Bruijn monads in set theory.                                           *)
+(* ------------------------------------------------------------------------- *)
+
+let IS_DBMONADSET = new_definition
+  `IS_DBMONADSET (t,unit,bind) <=>
+     unit In nat => t /\
+     bind In (nat => t) Crossset t => t /\
+     (!f g x. f In nat => t /\ g In nat => t /\ x In t
+              ==> bind AP (f,, bind AP (g,, x)) =
+                  bind AP ((FUNC i. bind AP (f,, g AP i)) nat,, x)) /\
+     (!f i. f In nat => t /\ i In nat
+            ==> bind AP (f,,unit AP i) = f AP i) /\
+     (!x. x In t ==> bind AP (unit,, x) = x)`;;
+
+let DBMONADSET = (new_specification ["DBMONADSET"] o prove)
+ (`?DBMONADSET. !t unit bind.
+     DBMONADSET (t,, unit,, bind) <=> IS_DBMONADSET (t, unit, bind)`,
+  EXISTS_TAC
+    `\m. ?t unit bind.
+       m = (t,, unit,, bind) /\ IS_DBMONADSET (t, unit, bind)` THEN
+  REWRITE_TAC[PAIRSET_EQ] THEN MESON_TAC[]);;
+
+(* 
+needs "Library/card.ml";;
+
+let SETOF_COUNTABLE = new_axiom
+  `!s:A->bool. COUNTABLE s ==> ?p. s = holset p`;;
+ *)
+
+(* ------------------------------------------------------------------------- *)
+(* Disjoint union of axiomatic sets.                                         *)
+(* ------------------------------------------------------------------------- *)
+ 
+parse_as_infix("Amalg",get_infix_status "UNION");;
+
+let IN_AMALG_RULES, IN_AMALG_CASES =
+ (CONJ_PAIR o new_specification ["Amalg";"Inl";"Inr"] o prove)
+ (`?(Amalg) Inl Inr.
+     ((!s t x. Inl x In s Amalg t <=> x In s) /\
+      (!s t y. Inr y In s Amalg t <=> y In t)) /\
+     (!s t z. z In s Amalg t <=>
+               (?x. x In s /\ z = Inl x) \/
+               (?y. y In t /\ z = Inr y))`,
+  EXISTS_TAC
+    `\s t. Separation (boolset Crossset (s Un t))
+            (\z. SNDSET z In (if FSTSET z = True then s else t))` THEN
+  EXISTS_TAC `\x. (True,,x)` THEN
+  EXISTS_TAC `\x. (False,,x)` THEN
+  REWRITE_TAC[IN_SEPARATION; PAIRSET_IN_CROSSSET; PAIRSET_PROJ;
+              BOOLSET_RULES; BOOLSET_DISTINCTNESS] THEN
+  CONJ_TAC THENL [ST_TAC[]; ALL_TAC] THEN
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[IN_CROSSSET_CASES; IN_BOOLSET] THEN EQ_TAC THENL
+  [REWRITE_TAC[IMP_CONJ]; ALL_TAC] THEN
+  STRIP_TAC THEN REPEAT (FIRST_X_ASSUM SUBST_VAR_TAC) THEN
+  ASM_REWRITE_TAC[PAIRSET_PROJ; PAIRSET_EQ; BOOLSET_DISTINCTNESS] THEN
+  ASM_ST_TAC[]);;

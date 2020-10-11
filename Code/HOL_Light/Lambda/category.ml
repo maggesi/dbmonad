@@ -18,6 +18,12 @@ let specify th =
   let th = GEN_REWRITE_RULE DEPTH_CONV [SKOLEM_THM] (GENL vars th) in
   new_specification names th;;
 
+let goal_variables () =
+  variables (snd (top_goal()));;
+
+let show_goal_variables () =
+  map dest_var (goal_variables ());;
+
 (* ------------------------------------------------------------------------- *)
 (* We introduce a new datatype for categories.                               *)
 (* ------------------------------------------------------------------------- *)
@@ -31,9 +37,11 @@ let IS_CATEGORY = new_definition
    (!w x y z f g h. f IN hom(w,x) /\ g IN hom(x,y) /\ h IN hom(y,z)
                     ==> comp(f,comp(g,h)) = comp(comp(f,g),h))`;;
 
-(* In the following definition, we use types A, B instead
-   of O,A (Objects, Arrows) in order to enforce the right order for the
-   type parameters in the type expression `:(O,A)category`.  *)
+(* ------------------------------------------------------------------------- *)
+(* In the following definition, we use types A, B instead                    *)
+(* of O,A (Objects, Arrows) in order to enforce the right order for the      *)
+(* type parameters in the type expression `:(O,A)category`.                  *)
+(* ------------------------------------------------------------------------- *)
 
 let category_TYBIJ =
   (new_type_definition "category" ("MK_CATEGORY","DEST_CATEGORY") o prove)
@@ -78,15 +86,25 @@ let CATEGORY_CLAUSES = prove
 (* ------------------------------------------------------------------------- *)
 
 let EXISTS_CATEGORY = prove
- (`IS_CATEGORY (obj,(\(x,y). hom x y),(idt:OO->AA),(\(f,g). comp f g))
-   ==> ?C:(OO,AA)category.
+ (`!obj hom idt comp.
+   (!x y f. f IN hom x y ==> x IN obj /\ y IN obj) /\
+   (!x. x IN obj ==> idt x IN hom x x) /\
+   (!x y z f g. f IN hom x y /\ g IN hom y z ==> comp f g IN hom x z) /\
+   (!x y f. f IN hom x y ==> comp (idt x) f = f /\ comp f (idt y) = f) /\
+   (!w x y z f g h. f IN hom w x /\ g IN hom x y /\ h IN hom y z
+                    ==> comp f (comp g h) = comp (comp f g) h) 
+   ==> ?C:(O,A)category.
          (OBJ C = obj) /\
          (!x y. HOM C (x,y) = hom x y) /\
          (!x. IDT C x = idt x) /\
          (!f g. COMP C (f,g) = comp f g)`,
-  REWRITE_TAC[category_TYBIJ] THEN DISCH_TAC THEN
+  REPEAT STRIP_TAC THEN
   EXISTS_TAC
-    `MK_CATEGORY(obj,(\(x,y). hom x y),(idt:OO->AA),(\(f,g). comp f g))` THEN
+    `MK_CATEGORY(obj,(\(x,y). hom x y),(idt:O->A),(\(f,g). comp f g))` THEN
+  CLAIM_TAC "cat"
+    `IS_CATEGORY (obj,(\(x,y). hom x y),idt:O->A,(\(f,g). comp f g))` THENL
+  [ASM_REWRITE_TAC[IS_CATEGORY];
+   HYP_TAC "cat" (REWRITE_RULE[category_TYBIJ])] THEN
   ASM_REWRITE_TAC[OBJ; HOM; IDT; COMP]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -99,7 +117,7 @@ let EMPTY_CATEGORY = (specify o prove)
      (!x y. HOM EMPTY_CATEGORY (x,y) = {}) /\
      (!x. IDT EMPTY_CATEGORY (x:O) = ARB:A) /\
      (!f g. COMP EMPTY_CATEGORY (f,g) = f)`,
-  MATCH_MP_TAC EXISTS_CATEGORY THEN REWRITE_TAC[IS_CATEGORY; NOT_IN_EMPTY]);;
+  MATCH_MP_TAC EXISTS_CATEGORY THEN REWRITE_TAC[NOT_IN_EMPTY]);;
 
 let DUAL_CATEGORY = (specify o prove)
  (`!C. ?DUAL_CATEGORY.
@@ -108,7 +126,7 @@ let DUAL_CATEGORY = (specify o prove)
      (!x:O. IDT DUAL_CATEGORY x = IDT C x) /\
      (!f g:A. COMP DUAL_CATEGORY (f,g) = COMP C (g,f))`,
   GEN_TAC THEN MATCH_MP_TAC EXISTS_CATEGORY THEN
-  SIMP_TAC[IS_CATEGORY; CATEGORY_CLAUSES] THEN MESON_TAC[CATEGORY_CLAUSES]);;
+ SIMP_TAC[CATEGORY_CLAUSES] THEN MESON_TAC[CATEGORY_CLAUSES]);;
 
 let DISCRETE_CATEGORY = (specify o prove)
  (`!s:O->bool i:O->A. ?DISCRETE_CATEGORY.
@@ -117,47 +135,39 @@ let DISCRETE_CATEGORY = (specify o prove)
         GSPEC (\a. SETSPEC a (x IN s /\ x = y) (i x))) /\
      (!x. IDT DISCRETE_CATEGORY x = i x) /\
      (!f g. COMP DISCRETE_CATEGORY (f,g) = f)`,
-  GEN_TAC THEN GEN_TAC THEN MATCH_MP_TAC EXISTS_CATEGORY THEN
-  REWRITE_TAC[IS_CATEGORY] THEN SET_TAC[]);;
+  GEN_TAC THEN GEN_TAC THEN MATCH_MP_TAC EXISTS_CATEGORY THEN SET_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Functors.                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-let FUNCTOR = new_definition
-  `FUNCTOR (C1,C2) =
-     {(h0,h1) | (!x:O. x IN OBJ C1 ==> h0 x:O' IN OBJ C2) /\
-                (!x y f:A. f IN HOM C1 (x,y)
-                           ==> h1 f:A' IN HOM C2 (h0 x,h0 y)) /\
-                (!x. x IN OBJ C1 ==> h1 (IDT C1 x) = IDT C2 (h0 x)) /\
-                (!x y z f g. f IN HOM C1 (x,y) /\ g IN HOM C1 (y,z)
-                             ==> h1 (COMP C1 (f,g)) = COMP C2 (h1 f, h1 g))}`;;
+let functor_INDUCT,functor_RECUR = define_type
+  "functor = MK_FUNCTOR (A->B) (C->D)";;
 
-let IN_FUNCTOR_ALT = prove
- (`!h0:O->O' h1:A->A'.
-     (h0,h1) IN FUNCTOR (C1,C2) <=>
-     (!x. x IN OBJ C1 ==> h0 x IN OBJ C2) /\
-     (!x y f. f IN HOM C1 (x,y) ==> h1 f IN HOM C2 (h0 x,h0 y)) /\
-     (!x. x IN OBJ C1 ==> h1 (IDT C1 x) = IDT C2 (h0 x)) /\
-     (!x y z f g. f IN HOM C1 (x,y) /\ g IN HOM C1 (y,z)
-                  ==> h1 (COMP C1 (f,g)) = COMP C2 (h1 f, h1 g))`,
-  REWRITE_TAC[FUNCTOR; IN_ELIM_THM; PAIR_EQ] THEN REPEAT GEN_TAC THEN
-  EQ_TAC THEN STRIP_TAC THEN REPEAT (FIRST_X_ASSUM SUBST_VAR_TAC) THEN
-  ASM_REWRITE_TAC[] THEN MAP_EVERY EXISTS_TAC [`h0:O->O'`;`h1:A->A'`] THEN
-  ASM_REWRITE_TAC[]);;
+let ONOBJS = new_recursive_definition functor_RECUR
+  `(!h0 h1. ONOBJS (MK_FUNCTOR h0 h1) = h0)`;;
 
-let ONOBJS = new_definition
-  `ONOBJS (h0:O->O',h1:A->A') = h0`;;
-
-let ONARRS = new_definition
-  `ONARRS (h0:O->O',h1:A->A') = h1`;;
+let ONARRS = new_recursive_definition functor_RECUR
+  `(!h0 h1. ONARRS (MK_FUNCTOR h0 h1) = h1)`;;
 
 let FUNCTOR_EXTENS = prove
- (`!h1 h2. h1 = h2 <=> ONOBJS h1:O->O' = ONOBJS h2 /\ ONARRS h1:A->A' = ONARRS h2`,
-  REWRITE_TAC[FORALL_PAIR_THM; ONOBJS; ONARRS; PAIR_EQ]);;
+ (`!h1 h2. h1 = h2 <=>
+           ONOBJS h1:O->O' = ONOBJS h2 /\ ONARRS h1:A->A' = ONARRS h2`,
+  MATCH_MP_TAC functor_INDUCT THEN GEN_TAC THEN GEN_TAC THEN
+  MATCH_MP_TAC functor_INDUCT THEN MESON_TAC[ONOBJS; ONARRS]);;
+
+let FUNCTOR = new_definition
+  `FUNCTOR (C1,C2) =
+   {h | (!x:O. x IN OBJ C1 ==> ONOBJS h x:O' IN OBJ C2) /\
+        (!x y f:A. f IN HOM C1 (x,y)
+                   ==> ONARRS h f:A' IN HOM C2 (ONOBJS h x,ONOBJS h y)) /\
+        (!x. x IN OBJ C1 ==> ONARRS h (IDT C1 x) = IDT C2 (ONOBJS h x)) /\
+        (!x y z f g.
+           f IN HOM C1 (x,y) /\ g IN HOM C1 (y,z)
+           ==> ONARRS h (COMP C1 (f,g)) = COMP C2 (ONARRS h f, ONARRS h g))}`;;
 
 let IN_FUNCTOR = prove
- (`!h:(O->O')#(A->A').
+ (`!h:(O,0',A,A')functor.
      h IN FUNCTOR (C1,C2) <=>
      (!x. x IN OBJ C1 ==> ONOBJS h x IN OBJ C2) /\
      (!x y f. f IN HOM C1 (x,y)
@@ -166,9 +176,12 @@ let IN_FUNCTOR = prove
      (!x y z f g.
         f IN HOM C1 (x,y) /\ g IN HOM C1 (y,z)
         ==> ONARRS h (COMP C1 (f,g)) = COMP C2 (ONARRS h f, ONARRS h g))`,
-  REWRITE_TAC[FORALL_PAIR_THM; GSYM IN_FUNCTOR_ALT; ONOBJS; ONARRS; ETA_AX]);;
+  MATCH_MP_TAC functor_INDUCT THEN REWRITE_TAC[FUNCTOR; IN_ELIM_THM]);;
 
-(* Helper theorem for defining functors. *)
+(* ------------------------------------------------------------------------- *)
+(* Helper theorem for defining functors.                                     *)
+(* ------------------------------------------------------------------------- *)
+
 let EXISTS_FUNCTOR = prove
  (`!C1 C2 h0:O->O' h1:A->A'.
      (!x. x IN OBJ C1 ==> h0 x IN OBJ C2) /\
@@ -176,18 +189,18 @@ let EXISTS_FUNCTOR = prove
      (!x. x IN OBJ C1 ==> h1 (IDT C1 x) = IDT C2 (h0 x)) /\
      (!x y z f g. f IN HOM C1 (x,y) /\ g IN HOM C1 (y,z)
                   ==> h1 (COMP C1 (f,g)) = COMP C2 (h1 f, h1 g))
-     ==> ?F. (ONOBJS F = h0) /\
-             (ONARRS F = h1) /\
-             F IN FUNCTOR (C1,C2)`,
-  REPEAT STRIP_TAC THEN EXISTS_TAC `(h0:O->O',h1:A->A')` THEN
-  ASM_REWRITE_TAC[ONOBJS; ONARRS; IN_FUNCTOR_ALT]);;
+     ==> ?h:(O,O',A,A')functor. (ONOBJS h = h0) /\
+                                (ONARRS h = h1) /\
+                                h IN FUNCTOR (C1,C2)`,
+  REPEAT STRIP_TAC THEN EXISTS_TAC `MK_FUNCTOR h0 h1:(O,O',A,A')functor` THEN
+  ASM_REWRITE_TAC[ONOBJS; ONARRS; IN_FUNCTOR]);;
 
 let IDT_FUNCTOR = (specify o prove)
  (`?IDT_FUNCTOR.
      (ONOBJS IDT_FUNCTOR = I:O->O) /\
      (ONARRS IDT_FUNCTOR = I:A->A) /\
      (!C. IDT_FUNCTOR IN FUNCTOR (C,C))`,
-  EXISTS_TAC `(I:O->O,I:A->A)` THEN
+  EXISTS_TAC `MK_FUNCTOR I I:(O,O,A,A)functor` THEN
   REWRITE_TAC[ONOBJS; ONARRS; IN_FUNCTOR; I_THM]);;
 
 let COMP_FUNCTOR = (specify o prove)
@@ -199,19 +212,21 @@ let COMP_FUNCTOR = (specify o prove)
         ==> COMP_FUNCTOR IN FUNCTOR (C1,C3))`,
   REPEAT GEN_TAC THEN
   EXISTS_TAC
-    `(ONOBJS (h2:(O2->O3)#(A2->A3)) o ONOBJS (h1:(O1->O2)#(A1->A2))),
-     (ONARRS (h2:(O2->O3)#(A2->A3)) o ONARRS (h1:(O1->O2)#(A1->A2)))` THEN
+    `MK_FUNCTOR
+       (ONOBJS (h2:(O2,O3,A2,A3)functor) o ONOBJS (h1:(O1,O2,A1,A2)functor))
+       (ONARRS h2 o ONARRS h1)` THEN
   REWRITE_TAC[IN_FUNCTOR; o_THM; ONOBJS; ONARRS] THEN
   REPEAT GEN_TAC THEN STRIP_TAC THEN ASM_SIMP_TAC[] THEN ASM_MESON_TAC[]);;
 
 let COMP_IDT_FUNCTOR = prove
- (`(!h. COMP_FUNCTOR IDT_FUNCTOR h = h:(O->O')#(A->A')) /\
-   (!h. COMP_FUNCTOR h IDT_FUNCTOR = h:(O->O')#(A->A'))`,
+ (`(!h:(O,O',A,A')functor. COMP_FUNCTOR IDT_FUNCTOR h = h) /\
+   (!h:(O,O',A,A')functor. COMP_FUNCTOR h IDT_FUNCTOR = h)`,
   REWRITE_TAC[FUNCTOR_EXTENS; COMP_FUNCTOR; IDT_FUNCTOR; I_O_ID]);;
 
 let COMP_FUNCTOR_ASSOC = prove
- (`!f g h. COMP_FUNCTOR f (COMP_FUNCTOR g h) =
-           COMP_FUNCTOR (COMP_FUNCTOR f g) h`,
+ (`!f g:(O2,O3,A2,A3)functor h.
+     COMP_FUNCTOR f (COMP_FUNCTOR g h):(O1,O4,A1,A4)functor =
+     COMP_FUNCTOR (COMP_FUNCTOR f g) h`,
   REWRITE_TAC[FUNCTOR_EXTENS; COMP_FUNCTOR; o_ASSOC]);;
 
 let CATEGORY = (specify o prove)

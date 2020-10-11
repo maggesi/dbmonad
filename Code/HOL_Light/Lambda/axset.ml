@@ -1051,11 +1051,14 @@ let SETOF_COUNTABLE = new_axiom
  
 parse_as_infix("Amalg",get_infix_status "UNION");;
 
-let IN_AMALG_RULES, IN_AMALG_CASES =
- (CONJ_PAIR o new_specification ["Amalg";"Inl";"Inr"] o prove)
+let [IN_AMALG_RULES; AMALG_DISTINCTNESS; AMALG_INJECTIVITY], IN_AMALG_CASES =
+ (splitlist CONJ_PAIR o new_specification ["Amalg";"Inl";"Inr"] o prove)
  (`?(Amalg) Inl Inr.
      ((!s t x. Inl x In s Amalg t <=> x In s) /\
       (!s t y. Inr y In s Amalg t <=> y In t)) /\
+     (!x y. ~(Inl x = Inr y)) /\
+     ((!x1 x2. Inl x1 = Inl x2 ==> x1 = x2) /\
+      (!y1 y2. Inr y1 = Inr y2 ==> y1 = y2)) /\
      (!s t z. z In s Amalg t <=>
                (?x. x In s /\ z = Inl x) \/
                (?y. y In t /\ z = Inr y))`,
@@ -1065,9 +1068,8 @@ let IN_AMALG_RULES, IN_AMALG_CASES =
   EXISTS_TAC `\x. (True,,x)` THEN
   EXISTS_TAC `\x. (False,,x)` THEN
   REWRITE_TAC[IN_SEPARATION; PAIRSET_IN_CROSSSET; PAIRSET_PROJ;
-              BOOLSET_RULES; BOOLSET_DISTINCTNESS] THEN
-  CONJ_TAC THENL [ST_TAC[]; ALL_TAC] THEN
-  REPEAT GEN_TAC THEN
+              PAIRSET_EQ; BOOLSET_RULES; BOOLSET_DISTINCTNESS] THEN
+  CONJ_TAC THENL [ST_TAC[]; REPEAT GEN_TAC] THEN
   REWRITE_TAC[IN_CROSSSET_CASES; IN_BOOLSET] THEN EQ_TAC THENL
   [REWRITE_TAC[IMP_CONJ]; ALL_TAC] THEN
   STRIP_TAC THEN REPEAT (FIRST_X_ASSUM SUBST_VAR_TAC) THEN

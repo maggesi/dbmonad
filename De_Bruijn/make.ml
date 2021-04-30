@@ -14,18 +14,13 @@ needs "Library/rstc.ml";;               (* Refl, symm, trans closure.       *)
 needs "Library/iter.ml";;               (* Iteration.                       *)
 type_invention_warning := true;;
 
-loadt "Lambda/lib.ml";;                 (* Misc tactics and theorems        *)
-loadt "Lambda/dblambda.ml";;            (* Lambda calculus                  *)
-loadt "Lambda/dbmonad.ml";;             (* dB-monads                        *)
-loadt "Lambda/dbmodule.ml";;            (* dB-modules                       *)
-loadt "Lambda/dblambda_initial.ml";;    (* Lambda calculus is initial       *)
+loadt "De_Bruijn/lib.ml";;              (* Misc tactics and theorems        *)
+loadt "De_Bruijn/dblambda.ml";;         (* Lambda calculus                  *)
+loadt "De_Bruijn/dbmonad.ml";;          (* dB-monads                        *)
+loadt "De_Bruijn/dbmodule.ml";;         (* dB-modules                       *)
+loadt "De_Bruijn/dblambda_initial.ml";; (* Lambda calculus is initial       *)
 
-loadt "Lambda/lambda.ml";;              (* Lambda calculus modulo beta-eta  *)
-loadt "Lambda/substoid.ml";;            (* Substoids and modules            *)
-loadt "Lambda/univ.ml";;                (* Universal property of lc         *)
-loadt "Lambda/rules.ml";;               (* Reduction module                 *)
-loadt "Lambda/esubstred.ml";;           (* Explicit reduction for subst1    *)
-
-(*
-loadt "Lambda/esubst.ml";;              (* Explict substitution             *)
-*)
+loadt "De_Bruijn/lambda.ml";;           (* Lambda calculus modulo beta-eta  *)
+loadt "De_Bruijn/substoid.ml";;         (* Substoids and modules            *)
+loadt "De_Bruijn/univ.ml";;             (* Universal property of lc         *)
+loadt "De_Bruijn/rules.ml";;            (* Reduction module                 *)

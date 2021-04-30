@@ -2,33 +2,21 @@
 (* Basic category theory.                                                    *)
 (*                                                                           *)
 (* Notes:                                                                    *)
-(*   - Use diagrammatic order in compositions.                               *)
-(*   - Use protoctegory defifinition (homs are not disjoint).                *)
-(*   - Identity is abbreviated idt.                                          *)
+(*   - We use diagrammatic order in compositions.                            *)
+(*   - We use "protocategories" (i.e., homs spaces are not disjoint).        *)
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
-(* Handy wrapper function around new_specification.                          *)
+(* Notations:                                                                *)
+(*                                                                           *)
+(* `x IN OBJ C`        `x` is an objects of the category`C`                  *)
+(* `f IN HOM C (x,y)`  `f` is an arrows from `x` to `y` in `C`               *)
+(* `IDT C x`           identity of object `x` in `C`                         *)
+(* `COMP C (f,g)`      composition of arrows `f` and `g` in `C`              *)
+(*                     (diagrammatic order!)                                 *)
 (* ------------------------------------------------------------------------- *)
 
-let specify th =
-  let vars = fst (strip_forall (concl th)) in
-  let th = GEN_REWRITE_RULE TRY_CONV [RIGHT_IMP_EXISTS_THM] (SPEC_ALL th) in
-  let names = map name_of (fst(strip_exists (concl th))) in
-  let th = GEN_REWRITE_RULE DEPTH_CONV [SKOLEM_THM] (GENL vars th) in
-  new_specification names th;;
-
-(* ------------------------------------------------------------------------- *)
-(* List of variables in the goal.                                            *)
-(* ------------------------------------------------------------------------- *)
-
-let goal_variables () =
-  let (asl,w) = top_goal() in
-  let vlist = itlist ((@) o variables) asl (variables w) in
-  setify vlist;;
-
-let show_goal_variables () =
-  map dest_var (goal_variables ());;
+needs "misc.ml";;
 
 (* ------------------------------------------------------------------------- *)
 (* We introduce a new datatype for categories.                               *)
@@ -174,23 +162,37 @@ let DISCRETE_CATEGORY = (specify o prove)
 (* ------------------------------------------------------------------------- *)
 
 let functor_INDUCT,functor_RECUR = define_type
-  "functor = MK_FUNCTOR (A->B) (C->D)";;
+  "functor = MK_FUNCTOR ((A,C)category) ((B,D)category) (A->B) (C->D)";;
+
+let FUNCTOR_SRC = new_recursive_definition functor_RECUR
+  `FUNCTOR_SRC (MK_FUNCTOR C1 C2 (h0:O->O') (h1:A->A')) = C1`;;
+
+let FUNCTOR_TRG = new_recursive_definition functor_RECUR
+  `FUNCTOR_TRG (MK_FUNCTOR C1 C2 (h0:O->O') (h1:A->A')) = C2`;;
 
 let ONOBJS = new_recursive_definition functor_RECUR
-  `(!h0 h1. ONOBJS (MK_FUNCTOR h0 h1) = h0)`;;
+  `ONOBJS (MK_FUNCTOR C1 C2 (h0:O->O') (h1:A->A')) = h0`;;
 
 let ONARRS = new_recursive_definition functor_RECUR
-  `(!h0 h1. ONARRS (MK_FUNCTOR h0 h1) = h1)`;;
+  `ONARRS (MK_FUNCTOR C1 C2 (h0:O->O') (h1:A->A')) = h1`;;
 
 let FUNCTOR_EXTENS = prove
- (`!h1 h2. h1 = h2 <=>
-           ONOBJS h1:O->O' = ONOBJS h2 /\ ONARRS h1:A->A' = ONARRS h2`,
-  MATCH_MP_TAC functor_INDUCT THEN GEN_TAC THEN GEN_TAC THEN
-  MATCH_MP_TAC functor_INDUCT THEN MESON_TAC[ONOBJS; ONARRS]);;
+ (`!h k. h = k <=>
+           FUNCTOR_SRC h = FUNCTOR_SRC k /\
+           FUNCTOR_TRG h = FUNCTOR_TRG k /\
+           ONOBJS h:O->O' = ONOBJS k /\
+           ONARRS h:A->A' = ONARRS k`,
+  MATCH_MP_TAC functor_INDUCT THEN INTRO_TAC "![C1] [C2] [h0] [h1]" THEN
+  MATCH_MP_TAC functor_INDUCT THEN INTRO_TAC "![D1] [D2] [k0] [k1]" THEN
+  EQ_TAC THENL
+  [DISCH_TAC THEN ASM_REWRITE_TAC[];
+   SIMP_TAC[FUNCTOR_SRC; FUNCTOR_TRG; ONOBJS; ONARRS]]);;
 
 let FUNCTOR = new_definition
   `FUNCTOR (C1,C2) =
-   {h | (!x:O. x IN OBJ C1 ==> ONOBJS h x:O' IN OBJ C2) /\
+   {h | FUNCTOR_SRC h = C1 /\
+        FUNCTOR_TRG h = C2 /\
+        (!x:O. x IN OBJ C1 ==> ONOBJS h x:O' IN OBJ C2) /\
         (!x y f:A. f IN HOM C1 (x,y)
                    ==> ONARRS h f:A' IN HOM C2 (ONOBJS h x,ONOBJS h y)) /\
         (!x. x IN OBJ C1 ==> ONARRS h (IDT C1 x) = IDT C2 (ONOBJS h x)) /\

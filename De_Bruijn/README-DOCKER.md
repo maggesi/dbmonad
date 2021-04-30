@@ -10,6 +10,7 @@ Start docker
 loadt "De_Bruijn/make.ml";;
 ```
 
+For debugging:
 ```ocaml
 Sys.getcwd();;
 !load_path;;

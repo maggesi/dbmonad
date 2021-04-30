@@ -2,17 +2,16 @@ Start docker
 ------------
 
 ```shell
-docker start -ia hol-light-ckpt-core
+. ./start_hol_light.sh
 ```
 
-```shell
-loadt "Lambda/make.ml";;
+```
+2;;
+loadt "De_Bruijn/make.ml";;
 ```
 
-```shell
-loadt "Lambda/axset.ml";;
-```
-
-```shell
-docker stop hol-light-dbmonad
+```ocaml
+Sys.getcwd();;
+!load_path;;
+Sys.command "ls /home/opam/work";;
 ```

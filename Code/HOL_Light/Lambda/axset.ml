@@ -4,20 +4,7 @@
 (* Copyright (c) 2020 Marco Maggesi                                          *)
 (* ========================================================================= *)
 
-(*
-time loadt "Lambda/axset.ml";;
-needs "Library/card.ml";;
-*)
-
-let LABEL_ABBREV_TAC tm : tactic =
-  let s = name_of (lhand tm) in
-  ABBREV_TAC tm THEN POP_ASSUM (LABEL_TAC (s^"_def"));;
-
-let LABEL_INDUCT_TAC : tactic =
-  fun (_,w) as gl ->
-    try let s = name_of (fst (dest_forall w)) in
-        (INDUCT_TAC THENL [ALL_TAC; POP_ASSUM (LABEL_TAC (s^"_ind"))]) gl
-    with Failure _ -> failwith "LABEL_INDUCT_TAC";;
+needs "misc.ml";;
 
 (* ------------------------------------------------------------------------- *)
 (* Syntax.                                                                   *)
@@ -32,8 +19,10 @@ parse_as_infix(",,",get_infix_status ",");;            (* Pairs             *)
 parse_as_infix("Crossset",get_infix_status "CROSS");;  (* Cartesian product *)
 parse_as_infix("Relset",get_infix_status "CROSS");;    (* Binary relations  *)
 parse_as_infix("=>",get_infix_status ",");;            (* Function space    *)
+parse_as_infix("~~>",get_infix_status "=>");;          (* Partial fun space *)
 parse_as_infix("FUNCTIONAL_ON",(12, "right"));;        (* Functional rels   *)
 parse_as_infix("AP",get_infix_status "$");;            (* Funct application *)
+parse_as_infix(">-",get_infix_status "$");;            (* Methods           *)
 parse_as_binder "FUNC";;                               (* Funct abstraction *)
 
 (* ------------------------------------------------------------------------- *)
@@ -95,7 +84,7 @@ let IN_REPLACEMENT = new_axiom
 let FOUNDATION_AX = new_axiom
   `!s. ~(s = Emptyset) ==> ?x. x In s /\ x Int s = Emptyset`;;
 
-let INFINITY_AX = new_axiom
+let INFINITY_SET = new_axiom
   `?s. Emptyset In s /\ !x. x In s ==> x Un Singleton x In s`;;
 
 (* ------------------------------------------------------------------------- *)
@@ -552,6 +541,20 @@ let EXISTS_IN_CROSSSET = prove
 extend_axset_rewrites [PAIRSET_PROJ; PAIRSET_EQ; PAIRSET_IN_CROSSSET;
   FORALL_IN_CROSSSET; EXISTS_IN_CROSSSET];;
 
+(*
+let IS_PAIRSET_RULES,IS_PAIRSET_INDUCT,IS_PAIRSET_CASES =
+  new_inductive_definition
+  `!x y. IS_PAIRSET (x,, y)`;;
+
+let IN_CROSSET_IS_PAIRSET = prove
+ (`!p s t. p In s Crossset t ==> IS_PAIRSET p`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[IN_CROSSSET_CASES] THEN
+  DISCH_THEN STRUCT_CASES_TAC THEN REWRITE_TAC[IS_PAIRSET_RULES]);;
+
+let CARTESIAN_RULES,CARTESIAN_INDUCT,CARTESIAN_CASES = new_inductive_definition
+  `!s t. CARTESIAN (s Crossset t)`;;
+*)
+
 (* ------------------------------------------------------------------------- *)
 (* Set of natural numbers.                                                   *)
 (* ------------------------------------------------------------------------- *)
@@ -563,7 +566,7 @@ let NAT_EXIST = prove
      (!n. n In nat ==> ?m. n = inc m) /\
      (inc 0 = zero) /\
      (!n. inc (SUC n) = suc (inc n))`,
-  DESTRUCT_TAC "@u. u0 u1" INFINITY_AX THEN
+  DESTRUCT_TAC "@u. u0 u1" INFINITY_SET THEN
   (DESTRUCT_TAC "@N. Nrules Nind Ncases" o prove_inductive_relations_exist)
     `N Emptyset /\
      (!n. N n ==> N (n Un Singleton n))` THEN
@@ -602,7 +605,7 @@ let NAT_EXIST = prove
    REMOVE_THEN "Nind" MATCH_MP_TAC THEN HYP MESON_TAC "inc0 inc1" []]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Further properties of `nat_of_num`.                                       *)
+(* Injection of `:num` in sets.                                              *)
 (* ------------------------------------------------------------------------- *)
 
 let NAT_OF_NUM_IN_NAT,NAT_OF_NUM_INJ,NAT_OF_NUM_SURJ,NAT_OF_NUM_CLAUSES =
@@ -743,35 +746,102 @@ let IN_CODOMAIN = prove
   REWRITE_TAC[CODOMAIN; IN_SEPARATION; IN_REPLACEMENT] THEN
   MESON_TAC[PAIRSET_PROJ]);;
 
-let FUNCSET = new_definition
-  `s => t =
-   Separation (s Relset t)
-              (\r. !x. x In s ==> (!y. x,,y In r ==> y In t) /\
-                                  (?!y. x,,y In r))`;;
+let DOMAIN_SBSET = prove
+ (`!f s. DOMAIN f Sbset s <=> (!x y. x,,y In f ==> x In s)`,
+  REWRITE_TAC[SBSET; IN_DOMAIN] THEN MESON_TAC[]);;
 
-let IN_FUNCSET = prove
- (`!f s t. f In s => t <=>
-           f Sbset s Crossset t /\
-           (!x. x In s ==> ?!y. x,,y In f)`,
-  REWRITE_TAC[FUNCSET; IN_SEPARATION; IN_RELSET; SBSET;
-              IN_CROSSSET_CASES] THEN
+let CODOMAIN_SBSET = prove
+ (`!f t. CODOMAIN f Sbset t <=> (!x y. x,,y In f ==> y In t)`,
+  REWRITE_TAC[SBSET; IN_CODOMAIN] THEN MESON_TAC[]);;
+
+let DOMAIN_EQ = prove
+ (`!f s. DOMAIN f = s <=> (!x. x In s <=> ?y. x,,y In f)`,
+  REPEAT GEN_TAC THEN GEN_REWRITE_TAC LAND_CONV [SET_EQ] THEN
+  REWRITE_TAC[IN_DOMAIN] THEN MESON_TAC[]);;
+
+let CODOMAIN_EQ = prove
+ (`!f t. CODOMAIN f = t <=> (!y. y In t <=> ?x. x,,y In f)`,
+  REPEAT GEN_TAC THEN GEN_REWRITE_TAC LAND_CONV [SET_EQ] THEN
+  REWRITE_TAC[IN_CODOMAIN] THEN MESON_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Functional relations.                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+let FUNCTIONAL = new_definition
+  `FUNCTIONAL f <=> (!p. p In f ==> ?x y. p = x,,y) /\
+                    (!x y1 y2. x,,y1 In f /\ x,,y2 In f ==> y1 = y2)`;;
+
+let FUNCTIONAL_IN_RELSET = prove
+ (`!f. FUNCTIONAL f ==> f In DOMAIN f Relset CODOMAIN f`,
+  GEN_TAC THEN REWRITE_TAC[FUNCTIONAL] THEN STRIP_TAC THEN
+  REWRITE_TAC[IN_RELSET; SBSET] THEN INTRO_TAC "![p]; p" THEN
+  USE_THEN "p" MP_TAC THEN REMOVE_THEN "p"
+    (fun th -> FIRST_X_ASSUM (STRUCT_CASES_TAC o C MATCH_MP th)) THEN
+  REWRITE_TAC[PAIRSET_IN_CROSSSET; IN_DOMAIN; IN_CODOMAIN] THEN
+  MESON_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Set of partial functions.                                                 *)
+(* ------------------------------------------------------------------------- *)
+
+let IN_PFUNCSET = (specify o prove)
+ (`?(~~>). !f s t.
+     f In s ~~> t <=>
+     FUNCTIONAL f /\ DOMAIN f Sbset s /\ CODOMAIN f Sbset t`,
+  EXISTS_TAC `\s t.
+    Separation (s Relset t)
+               (\r. !x y1 y2. x,,y1 In r /\ x,,y2 In r ==> y1 = y2)` THEN
+  REWRITE_TAC[DOMAIN_SBSET; CODOMAIN_SBSET; IN_SEPARATION; IN_RELSET] THEN
+  REWRITE_TAC[SBSET; IN_CROSSSET_CASES; FUNCTIONAL] THEN
   MESON_TAC[PAIRSET_EQ]);;
 
-let FUNCSET_SBSET_RELSET = prove
- (`!s t. s => t Sbset s Relset t`,
-  REWRITE_TAC[FUNCSET; SBSET; IN_SEPARATION] THEN MESON_TAC[]);;
+let DOMAIN_PFUNCSET = prove
+ (`!f s t. f In s ~~> t ==> DOMAIN f Sbset s`,
+  SIMP_TAC[IN_PFUNCSET]);;
+
+let CODOMAIN_PFUNCSET = prove
+ (`!f s t. f In s ~~> t ==> CODOMAIN f Sbset t`,
+  SIMP_TAC[IN_PFUNCSET]);;
+
+let PFUNCSET_TARGET_SUPERSET = prove
+ (`!f s t t'. f In s ~~> t /\ t Sbset t' ==> f In s ~~> t'`,
+  REWRITE_TAC[IN_PFUNCSET] THEN MESON_TAC[SBSET_TRANS]);;
+
+let PFUNCSET_TARGET_SUPERSET = prove
+ (`!f s t t'. f In s ~~> t /\ t Sbset t' ==> f In s ~~> t'`,
+  REWRITE_TAC[IN_PFUNCSET] THEN MESON_TAC[SBSET_TRANS]);;
+
+let PFUNCSET_SBSET_RELSET = prove
+ (`!s t. s ~~> t Sbset s Relset t`,
+  REPEAT GEN_TAC THEN GEN_REWRITE_TAC I [SBSET] THEN
+  REWRITE_TAC[IN_PFUNCSET; IN_RELSET; DOMAIN_SBSET; CODOMAIN_SBSET;
+              SBSET; IN_CROSSSET_CASES; FUNCTIONAL] THEN
+  MESON_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Set of functions.                                                         *)
+(* ------------------------------------------------------------------------- *)
+
+let IN_FUNCSET = (specify o prove)
+ (`?(=>). !f s t.
+     f In s => t <=>
+     FUNCTIONAL f /\ DOMAIN f = s /\ CODOMAIN f Sbset t`,
+  EXISTS_TAC `\s t. Separation (s ~~> t) (\f. DOMAIN f = s)` THEN
+  REPEAT GEN_TAC THEN REWRITE_TAC[IN_SEPARATION; IN_PFUNCSET] THEN
+  MESON_TAC[SBSET_REFL]);;
+
+let FUNCTIONAL_FUNCSET = prove
+ (`!f s t. f In s => t ==> FUNCTIONAL f`,
+  SIMP_TAC[IN_FUNCSET]);;
 
 let DOMAIN_FUNCSET = prove
  (`!f s t. f In s => t ==> DOMAIN f = s`,
-  REWRITE_TAC[IN_FUNCSET; SBSET; SET_EQ; IN_DOMAIN] THEN
-  REWRITE_TAC[IN_CROSSSET_CASES] THEN
-  MESON_TAC[PAIRSET_EQ]);;
+  SIMP_TAC[IN_FUNCSET]);;
 
 let CODOMAIN_FUNCSET = prove
  (`!f s t. f In s => t ==> CODOMAIN f Sbset t`,
-  REWRITE_TAC[IN_FUNCSET; SBSET; SET_EQ; IN_CODOMAIN] THEN
-  REWRITE_TAC[IN_CROSSSET_CASES] THEN
-  MESON_TAC[PAIRSET_EQ]);;
+  SIMP_TAC[IN_FUNCSET]);;
 
 let FUNCSET_TARGET_SUPERSET = prove
  (`!f s t t'. f In s => t /\ t Sbset t' ==> f In s => t'`,
@@ -782,9 +852,15 @@ let FUNCSET_CODOMAIN_SUPERSET = prove
   REWRITE_TAC[IN_FUNCSET; SBSET; IN_CROSSSET_CASES; IN_CODOMAIN] THEN
   MESON_TAC[]);;
 
-let FUNCTIONAL = new_definition
-  `FUNCTIONAL f <=> (!p. p In f ==> ?x y. p = x,,y) /\
-                    (!x y1 y2. x,,y1 In f /\ x,,y2 In f ==> y1 = y2)`;;
+let FUNSEC_SBSET_PFUNCSET = prove
+ (`!s t. s => t Sbset s ~~> t`,
+  REPEAT GEN_TAC THEN GEN_REWRITE_TAC I [SBSET] THEN GEN_TAC THEN
+  REWRITE_TAC[IN_FUNCSET] THEN STRIP_TAC THEN
+  ASM_REWRITE_TAC[IN_PFUNCSET; SBSET_REFL]);;
+
+let FUNCSET_SBSET_RELSET = prove
+ (`!s t. s => t Sbset s Relset t`,
+  MESON_TAC[SBSET_TRANS; PFUNCSET_SBSET_RELSET; FUNSEC_SBSET_PFUNCSET]);;
 
 let FUNCTIONAL_IFF_FUNCSET = prove
  (`!f. FUNCTIONAL f <=> f In DOMAIN f => CODOMAIN f`,
@@ -818,19 +894,15 @@ let DOMAIN_FUNCTIONAL_ON = prove
 
 let FUNCTIONAL_ON_IFF_FUNCSET = prove
  (`!f s. f FUNCTIONAL_ON s <=> f In s => CODOMAIN f`,
-  REWRITE_TAC[FUNCTIONAL_ON; IN_FUNCSET; IN_CODOMAIN;
-              SBSET; IN_CROSSSET_CASES] THEN
-  MESON_TAC[PAIRSET_EQ]);;
+  REPEAT GEN_TAC THEN
+  REWRITE_TAC[FUNCTIONAL_ON; IN_FUNCSET; DOMAIN_EQ;
+              SBSET_REFL; FUNCTIONAL] THEN
+  EQ_TAC THEN STRIP_TAC THEN ASM_REWRITE_TAC[] THEN ASM_MESON_TAC[]);;
 
 let FUNCSET_IFF_FUNCTIONAL_ON = prove
  (`!f s t. f In s => t <=> f FUNCTIONAL_ON s /\ CODOMAIN f Sbset t`,
   REWRITE_TAC[FUNCTIONAL_ON_IFF_FUNCSET] THEN
   MESON_TAC[CODOMAIN_FUNCSET; SBSET_REFL; FUNCSET_CODOMAIN_SUPERSET]);;
-
-let FUNCSET_IFF_FUNCTIONAL = prove
- (`!f s t. f In s => t <=> FUNCTIONAL f /\ DOMAIN f = s /\ CODOMAIN f Sbset t`,
-  REWRITE_TAC[FUNCSET_IFF_FUNCTIONAL_ON; FUNCTIONAL_IFF_FUNCTIONAL_ON] THEN
-  MESON_TAC[DOMAIN_FUNCTIONAL_ON]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Function abstraction.                                                     *)
@@ -861,8 +933,8 @@ let EXISTS_IN_FUNC = prove
 
 let FUNC_IN_FUNCSET = prove
  (`!f s t. (FUNC) f s In s => t <=> (!x. x In s ==> f x In t)`,
-  REWRITE_TAC[IN_FUNCSET; SBSET; FORALL_IN_FUNC;
-              PAIRSET_IN_CROSSSET; IN_FUNC] THEN
+  REWRITE_TAC[IN_FUNCSET; DOMAIN_EQ; CODOMAIN_SBSET; FUNCTIONAL;
+              IN_FUNC; FORALL_IN_FUNC; PAIRSET_EQ] THEN
   MESON_TAC[]);;
 
 let FUNC_FUNCTIONAL_ON = prove
@@ -872,13 +944,11 @@ let FUNC_FUNCTIONAL_ON = prove
 
 let DOMAIN_FUNC = prove
  (`!f s. DOMAIN ((FUNC) f s) = s`,
-  REWRITE_TAC[IN_DOMAIN; SET_EQ] THEN
-  REWRITE_TAC[IN_FUNC] THEN MESON_TAC[]);;
+  REWRITE_TAC[DOMAIN_EQ; IN_FUNC] THEN MESON_TAC[]);;
 
 let CODOMAIN_FUNC = prove
  (`!f s. CODOMAIN ((FUNC) f s) = Replacement f s`,
-  REWRITE_TAC[IN_CODOMAIN; SET_EQ] THEN
-  REWRITE_TAC[IN_FUNC; IN_REPLACEMENT]);;
+  REWRITE_TAC[CODOMAIN_EQ; IN_FUNC; IN_REPLACEMENT]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Function application.                                                     *)
@@ -899,6 +969,28 @@ let FUNC_AP = prove
 let FUNCSET_AP_UNIQUE = time prove
  (`!f s t x y. f In s => t /\ x In s /\ x,,y In f ==> f AP x = y`,
   REWRITE_TAC[FUNCSET_IFF_FUNCTIONAL_ON] THEN MESON_TAC[AP_UNIQUE]);;
+
+(*
+let FUNCTIONAL_EXTENSIONALITY = prove
+ (`!f g. FUNCTIONAL f /\
+         FUNCTIONAL g /\
+         DOMAIN f = DOMAIN g /\
+         (!x. x In DOMAIN f ==> f AP x = g AP x)
+         ==> f = g`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[FUNCTIONAL] THEN
+  INTRO_TAC "(f1 f2) (g1 g2) eq1 eq2" THEN
+  GEN_REWRITE_TAC I [SET_EQ] THEN FIX_TAC "[p]" THEN
+  ASM_CASES_TAC `p In f`  THEN ASM_REWRITE_TAC[] THEN
+   REMOVE_THEN "f1" (STRIP_ASSUME_TAC o C MATCH_MP (ASSUME `p In f`))
+   POP_ASSUM SUBST_VAR_TAC THEN
+   CLAIM_TAC "x1" `x In DOMAIN f` THEN
+   [REWRITE_TAC[IN_DOMAIN] THEN ASM_MESON_TAC[]; ALL_TAC] THEN
+   CLAIM_TAC "fx" `f AP x = y` THENL
+   [
+     MATCH_MP_TAC AP_UNIQUE
+   ]
+  );;
+*)
 
 (* ------------------------------------------------------------------------- *)
 (* Product set (i.e., dependent product).                                    *)
@@ -1038,17 +1130,10 @@ let DBMONADSET = (new_specification ["DBMONADSET"] o prove)
        m = (t,, unit,, bind) /\ IS_DBMONADSET (t, unit, bind)` THEN
   REWRITE_TAC[PAIRSET_EQ] THEN MESON_TAC[]);;
 
-(* 
-needs "Library/card.ml";;
-
-let SETOF_COUNTABLE = new_axiom
-  `!s:A->bool. COUNTABLE s ==> ?p. s = holset p`;;
- *)
-
 (* ------------------------------------------------------------------------- *)
 (* Disjoint union of axiomatic sets.                                         *)
 (* ------------------------------------------------------------------------- *)
- 
+
 parse_as_infix("Amalg",get_infix_status "UNION");;
 
 let [IN_AMALG_RULES; AMALG_DISTINCTNESS; AMALG_INJECTIVITY], IN_AMALG_CASES =
@@ -1075,3 +1160,126 @@ let [IN_AMALG_RULES; AMALG_DISTINCTNESS; AMALG_INJECTIVITY], IN_AMALG_CASES =
   STRIP_TAC THEN REPEAT (FIRST_X_ASSUM SUBST_VAR_TAC) THEN
   ASM_REWRITE_TAC[PAIRSET_PROJ; PAIRSET_EQ; BOOLSET_DISTINCTNESS] THEN
   ASM_ST_TAC[]);;
+
+let [IN_MAYBE_RULES; MAYBE_DISTINCTNESS; MAYBE_INJECTIVITY], IN_MAYBE_CASES =
+ (splitlist CONJ_PAIR o new_specification ["Maybe";"Just";"Nothing"] o prove)
+ (`?(Maybe:set->set) Just Nothing.
+    ((!A x. x In A ==> Just x In Maybe A) /\
+      (!A. Nothing In Maybe A)) /\
+    (!x. ~(Just x = Nothing)) /\
+    (!x1 x2. Just x1 = Just x2 ==> x1 = x2) /\
+    (!A y. y In Maybe A <=> y = Nothing \/ ?x. x In A /\ y = Just x)`,
+  EXISTS_TAC `\A. A Amalg Singleton Zero` THEN
+  EXISTS_TAC `Inl` THEN
+  EXISTS_TAC `Inr Zero` THEN
+  REWRITE_TAC[IN_AMALG_RULES; IN_SINGLETON; AMALG_DISTINCTNESS;
+              AMALG_INJECTIVITY] THEN
+  REPEAT GEN_TAC THEN GEN_REWRITE_TAC LAND_CONV [IN_AMALG_CASES] THEN
+  REWRITE_TAC[IN_SINGLETON] THEN MESON_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Strings.                                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+let [SET_OF_STRING_IN_STRINGSET;
+     STRING_OF_SET_OF_STRING;
+     SET_OF_STRING_OF_SET] = (CONJUNCTS o specify o prove)
+ (`?stringset set_of_string string_of_set.
+     (!s:string. set_of_string s In stringset) /\
+     (!s. string_of_set (set_of_string s) = s) /\
+     (!s. s In stringset ==> set_of_string (string_of_set s) = s)`,
+  CHEAT_TAC);;
+
+(* ------------------------------------------------------------------------- *)
+(* Objects.                                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+let OBJSET = new_definition
+  `OBJSET uu = stringset ~~> uu`;;
+
+let METHOD = new_definition
+  `ob>-s = ob AP set_of_string s`;;
+
+let OBJ_EQ = prove
+ (`!o1 o2.
+     o1 = o2 <=>
+     DOMAIN o1 = DOMAIN o2 /\
+     (!s. s In DOMAIN o1 ==> o1>-s = o2>-s)`,
+  );;
+
+(* ------------------------------------------------------------------------- *)
+(* Lambda calculus.                                                          *)
+(* ------------------------------------------------------------------------- *)
+
+(*
+let [IN_LTERM_RULES; LTERM_DISTINCTNESS; LTERM_INJECTIVITY], IN_LTERM_CASES =
+ (splitlist CONJ_PAIR o
+  new_specification ["LTerm";"LVar";"LApp";"LAbs"] o prove)
+ (`?(LTerm:set->set) LVar LApp LAbs.
+     ((!A x. x In A ==> LVar x In LTerm A) /\
+      (!A s t. s In LTerm A /\ t In LTerm A ==> LApp s t In LTerm A) /\
+      (!A t. t In LTerm (Maybe A) ==> LAbs t In LTerm A)) /\
+     ((!x s t. ~(LVar x = LApp s t)) /\
+      (!x t. ~(LVar x = LAbs t)) /\
+      (!s t u. ~(LApp s t = LAbs u))) /\
+     ((!x1 x2. LVar x1 = LVar x2 ==> x1 = x2) /\
+      (!s1 s2 t1 t2. LApp s1 t1 = LApp s2 t2 ==> s1 = s2 /\ t1 = t2) /\
+      (!t1 t2. LAbs t1 = LAbs t2 ==> t1 = t2)) /\
+     (!A u. u In LTerm A <=>
+            (?x. x In A /\ u = LVar A) \/
+            (?s t. s In LTerm A /\ t In LTerm A /\ u = LApp s t) \/
+            (?t. t In LTerm (Maybe A) /\ u = LAbs t))`,
+  CHEAT_TAC);;
+*)
+
+(* ------------------------------------------------------------------------- *)
+(* Monads.                                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+(*
+let IS_MONADSET = new_definition
+  `IS_MONADSET (M:set->set,unit,bind) <=>
+     (!A a. a In A ==> unit a In M A) /\
+     (!A B f. (!a. a In))
+     unit In nat => t /\
+     bind In (nat => t) Crossset t => t /\
+     (!f g x. f In nat => t /\ g In nat => t /\ x In t
+              ==> bind AP (f,, bind AP (g,, x)) =
+                  bind AP ((FUNC i. bind AP (f,, g AP i)) nat,, x)) /\
+     (!f i. f In nat => t /\ i In nat
+            ==> bind AP (f,,unit AP i) = f AP i) /\
+     (!x. x In t ==> bind AP (unit,, x) = x)`;;
+ *)
+(*
+let MONAD = (new_specification ["MONAD"] o prove)
+ (`?MONAD. !t unit bind.
+     MONAD (t,, unit,, bind) <=>
+     `,
+  EXISTS_TAC
+    `\m. ?t unit bind.
+       m = (t,, unit,, bind) /\ IS_MONAD (t, unit, bind)` THEN
+  REWRITE_TAC[PAIRSET_EQ] THEN MESON_TAC[]);;
+*)
+
+(* objects, arrows, source, target, identity, composition *)
+let SETCATEGORY = new_definition
+ (`SETCATEGORY uu =
+     Separation (uu Crossset
+                 uu Crossset
+                 uu Crossset
+                 uu Crossset
+                 uu Crossset
+                 uu)
+       (\C. let obj = FSTSET C in
+            let arr = FSTSET (SNDSET C) in
+            let src = FSTSET (SNDSET (SNDSET C)) in
+            let trg = FSTSET (SNDSET (SNDSET (SNDSET C))) in
+            let idt = FSTSET (SNDSET (SNDSET (SNDSET (SNDSET C)))) in
+            let comp = FSTSET (SNDSET (SNDSET (SNDSET (SNDSET (SNDSET C))))) in
+            let hom = Separation (arr Crossset arr) (\p. trg (FSTSET p) )
+            src In arr => obj /\
+            trg In arr => obj /\
+            idt In obj => arr /\
+            comp In
+
+            `,)

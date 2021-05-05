@@ -9,6 +9,8 @@
 (*          (c) Copyright, Marco Maggesi 2005 2006 2017, 2020                *)
 (* ========================================================================= *)
 
+prioritize_num();;
+
 type_invention_warning := false;;
 needs "Library/rstc.ml";;               (* Refl, symm, trans closure.       *)
 needs "Library/iter.ml";;               (* Iteration.                       *)

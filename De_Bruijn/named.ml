@@ -230,29 +230,59 @@ let ACONV_COMB = prove
                  ACONV s1 s2 /\ ACONV t1 t2`,
   REWRITE_TAC[ACONV; RACONV]);;
 
-(*
+let RACONV_INDUCT_STRONG =
+  derive_strong_induction (RACONV_RULES,RACONV_INDUCT);;
+
+let FRESH_NEQ = prove
+ (`!s x. FINITE s /\ x IN s ==> ~(FRESH s = x)`,
+  MESON_TAC[FRESH]);;
+
 let RACONV_VSUBST = prove
- (`!env s t f g.
+ (`!env s t env' f g.
      RACONV env (s,t) /\
-     (!x y. ALPHAVARS env (x,y) /\ (~MEM (x,y) env ==> x IN FVARS s)
-            ==> RACONV env (f x,g y))
-     ==> RACONV env (VSUBST f s,VSUBST g t)`,
-
+     (!x y. ALPHAVARS env (x,y) /\ x IN FVARS s /\ y IN FVARS t
+            ==> RACONV env' (f x,g y))
+     ==> RACONV env' (VSUBST f s,VSUBST g t)`,
   SUBGOAL_THEN
-    `!env p. RACONV env p
-             ==> !f g. (!x y. ALPHAVARS env (x,y) /\
-                             (~MEM (x,y) env ==> x IN FVARS (FST p))
-                             ==> RACONV env (f x,g y))
-                       ==> RACONV env (VSUBST f (FST p),VSUBST g (SND p))`
+    `!env p.
+       RACONV env p
+       ==> !f g env'. (!x y. ALPHAVARS env (x,y) /\
+                             x IN FVARS (FST p) /\
+                             y IN FVARS (SND p)
+                             ==> RACONV env' (f x,g y))
+                      ==> RACONV env' (VSUBST f (FST p),VSUBST g (SND p))`
     (fun th -> MESON_TAC[REWRITE_RULE[FORALL_PAIR_THM] th]) THEN
-*)
+  MATCH_MP_TAC RACONV_INDUCT_STRONG THEN REWRITE_TAC[VSUBST; RACONV] THEN
+  REPEAT CONJ_TAC THENL
+  [REWRITE_TAC[FVARS_INVERSION] THEN MESON_TAC[];
+   REWRITE_TAC[FVARS_INVERSION] THEN MESON_TAC[];
+   ALL_TAC] THEN
+  REPEAT STRIP_TAC THEN REWRITE_TAC[VSUBST] THEN
+  LET_TAC THEN LET_TAC THEN REWRITE_TAC[RACONV] THEN
+  FIRST_X_ASSUM MATCH_MP_TAC THEN FIX_TAC "[u] [v]" THEN
+  REWRITE_TAC[ALPHAVARS; PAIR_EQ] THEN STRIP_TAC THENL
+  [REPEAT (FIRST_X_ASSUM SUBST1_TAC) THEN REWRITE_TAC[RACONV; ALPHAVARS];
+   ALL_TAC] THEN
+  ASM_REWRITE_TAC[] THEN
+  MP_TAC (SPECL [`env':(num#num)list`; `CONS (x'':num,x':num) env'`;
+                 `f (u:num):term`; `g (v:num):term`]
+          RACONV_ENV_INDEPENDENT) THEN
+  ANTS_TAC THENL
+  [INTRO_TAC "![w] [z]; w z" THEN ASM_REWRITE_TAC[ALPHAVARS; PAIR_EQ] THEN
+   SUBGOAL_THEN `~(x'' = w:num) /\ ~(x' = z:num)`
+     (fun th -> MESON_TAC[th]) THEN REPEAT (FIRST_X_ASSUM SUBST_VAR_TAC) THEN
+   CONJ_TAC THEN MATCH_MP_TAC FRESH_NEQ THEN
+   REWRITE_TAC[FINITE_UNIONS; FORALL_IN_IMAGE;
+    SET_RULE `!f s. {FVARS (f y) | y IN s} = IMAGE (\x. FVARS (f x)) s`] THEN
+   SIMP_TAC[FINITE_IMAGE; FINITE_FVARS] THEN
+   REWRITE_TAC[UNIONS_IMAGE; IN_ELIM_THM] THEN ASM_MESON_TAC[];
+   ALL_TAC] THEN
+  DISCH_THEN (SUBST1_TAC o GSYM) THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
+  ASM_REWRITE_TAC[FVARS_INVERSION]);;
 
-(* 
 let ACONV_VSUBST = prove
  (`!s t f g. ACONV s t /\ (!x. x IN FVARS s ==> ACONV (f x) (g x))
              ==> ACONV (VSUBST f s) (VSUBST g t)`,
-
-REWRITE_TAC[ACONV]
-
- );;
-*)
+  REWRITE_TAC[ACONV] THEN REPEAT STRIP_TAC THEN MATCH_MP_TAC RACONV_VSUBST THEN
+  EXISTS_TAC `[]:(num#num)list` THEN ASM_REWRITE_TAC[ALPHAVARS] THEN
+  ASM_MESON_TAC[]);;

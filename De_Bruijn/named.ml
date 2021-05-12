@@ -11,14 +11,41 @@ type_invention_warning := true;;
 needs "De_Bruijn/misc.ml";;
 needs "De_Bruijn/lib.ml";;
 
-let term_INDUCT,term_RECUR = define_type
-  "term = Var num
-        | Comb term term
-        | Lam num term";;
+let sterm_INDUCT,sterm_RECUR = define_type
+  "sterm = SVAR num
+         | SAPP sterm sterm
+         | SLAM num sterm";;
 
-let term_INJ = injectivity "term";;
-let term_DISTINCT = distinctness "term";;
-let term_CASES = cases "term";;
+let sterm_INDUCT = prove
+ (`!P. (!v. P (VAR v)) /\
+       (!s t. P s /\ P t ==> P (APP s t)) /\
+       (!v s. P s ==> P (LAM v s))
+       ==> (!s:sterm. P s)`,
+  MATCH_ACCEPT_TAC sterm_INDUCT);;
+
+make_overloadable "VAR" `:num->A`;;
+make_overloadable "APP" `:A->A->A`;;
+make_overloadable "LAM" `:num->A->A`;;
+
+let prioritize_dblambda() =
+  overload_interface("APP",`APP:dblambda->dblambda->dblambda`);;
+
+prioritize_dblambda();;
+
+let prioritize_sterm() =
+  overload_interface("VAR",`SVAR:num->sterm`);
+  overload_interface("APP",`SAPP:sterm->sterm->sterm`);
+  overload_interface("LAM",`SLAM:num->sterm->sterm`);;
+
+prioritize_sterm();;
+
+let sterm_INJ = injectivity "sterm";;
+let sterm_DISTINCT = distinctness "sterm";;
+let sterm_CASES = prove
+ (`!tm. (?v. tm = VAR v) \/
+         (?s t. tm = APP s t) \/
+         (?v s. tm = LAM v s)`,
+  MATCH_ACCEPT_TAC (cases "sterm"));;
 
 (* ------------------------------------------------------------------------- *)
 (* Alpha-conversion.                                                         *)
@@ -33,26 +60,29 @@ let ALPHAVARS = define
 let RACONV_RULES,RACONV_INDUCT,RACONV_CASES = new_inductive_definition
  `(!env x y.
      ALPHAVARS env (x,y)
-     ==> RACONV env (Var x,Var y)) /\
+     ==> RACONV env (VAR x,VAR y)) /\
   (!env s1 t1 s2 t2.
      RACONV env (s1,s2) /\ RACONV env (t1,t2)
-     ==> RACONV env (Comb s1 t1,Comb s2 t2)) /\
+     ==> RACONV env (APP s1 t1,APP s2 t2)) /\
   (!env x s y t.
-     RACONV (CONS (x,y) env) (s,t) ==> RACONV env (Lam x s,Lam y t))`;;
+     RACONV (CONS (x,y) env) (s,t) ==> RACONV env (LAM x s,LAM y t))`;;
+
+let RACONV_INDUCT_STRONG =
+  derive_strong_induction (RACONV_RULES,RACONV_INDUCT);;
 
 let RACONV = prove
- (`RACONV env (Var x1,Var x2) = ALPHAVARS env (x1,x2) /\
-   RACONV env (Var x1,Comb l2 r2) = F /\
-   RACONV env (Var x1,Lam x2 t2) = F /\
-   RACONV env (Comb l1 r1,Var x2) = F /\
-   RACONV env (Comb l1 r1,Comb l2 r2) =
+ (`RACONV env (VAR x1,VAR x2) = ALPHAVARS env (x1,x2) /\
+   RACONV env (VAR x1,APP l2 r2) = F /\
+   RACONV env (VAR x1,LAM x2 t2) = F /\
+   RACONV env (APP l1 r1,VAR x2) = F /\
+   RACONV env (APP l1 r1,APP l2 r2) =
      (RACONV env (l1,l2) /\ RACONV env (r1,r2)) /\
-   RACONV env (Comb l1 r1,Lam x2 t2) = F /\
-   RACONV env (Lam x1 t1,Var x2) = F /\
-   RACONV env (Lam x1 t1,Comb l2 r2) = F /\
-   RACONV env (Lam x1 t1,Lam x2 t2) = RACONV (CONS (x1,x2) env) (t1,t2)`,
+   RACONV env (APP l1 r1,LAM x2 t2) = F /\
+   RACONV env (LAM x1 t1,VAR x2) = F /\
+   RACONV env (LAM x1 t1,APP l2 r2) = F /\
+   RACONV env (LAM x1 t1,LAM x2 t2) = RACONV (CONS (x1,x2) env) (t1,t2)`,
   REPEAT CONJ_TAC THEN GEN_REWRITE_TAC LAND_CONV [RACONV_CASES] THEN
-  REWRITE_TAC[term_INJ; term_DISTINCT; PAIR_EQ] THEN MESON_TAC[]);;
+  REWRITE_TAC[sterm_INJ; sterm_DISTINCT; PAIR_EQ] THEN MESON_TAC[]);;
 
 let ACONV = new_definition
  `ACONV t1 t2 <=> RACONV [] (t1,t2)`;;
@@ -69,7 +99,8 @@ let ALPHAVARS_REFL = prove
 
 let RACONV_REFL = prove
  (`!t env. ALL (\(s,t). s = t) env ==> RACONV env (t,t)`,
-  MATCH_MP_TAC term_INDUCT THEN REWRITE_TAC[RACONV] THEN REPEAT STRIP_TAC THENL
+  MATCH_MP_TAC sterm_INDUCT THEN REWRITE_TAC[RACONV] THEN
+  REPEAT STRIP_TAC THENL
   [ASM_SIMP_TAC[ALPHAVARS_REFL];
    ASM_MESON_TAC[];
    ASM_MESON_TAC[];
@@ -84,23 +115,23 @@ let ACONV_REFL = prove
 (* ------------------------------------------------------------------------- *)
 
 let FVARS_RULES,FVARS_INDUCT,FVARS_CASES = new_inductive_set
-  `(!x. x IN FVARS (Var x)) /\
-   (!x s t. x IN FVARS s ==> x IN FVARS (Comb s t)) /\
-   (!x s t. x IN FVARS t ==> x IN FVARS (Comb s t)) /\
-   (!x y t. ~(x = y) /\ x IN FVARS t ==> x IN FVARS (Lam y t))`;;
+  `(!x. x IN FVARS (VAR x)) /\
+   (!x s t. x IN FVARS s ==> x IN FVARS (APP s t)) /\
+   (!x s t. x IN FVARS t ==> x IN FVARS (APP s t)) /\
+   (!x y t. ~(x = y) /\ x IN FVARS t ==> x IN FVARS (LAM y t))`;;
 
-let FVARS_INVERSION = prove
- (`(!x y. x IN FVARS (Var y) <=> x = y) /\
-   (!x s t. x IN FVARS (Comb s t) <=> x IN FVARS s \/ x IN FVARS t) /\
-   (!x y t. x IN FVARS (Lam y t) <=> ~(x = y) /\ x IN FVARS t)`,
+let IN_FVARS = prove
+ (`(!x y. x IN FVARS (VAR y) <=> x = y) /\
+   (!x s t. x IN FVARS (APP s t) <=> x IN FVARS s \/ x IN FVARS t) /\
+   (!x y t. x IN FVARS (LAM y t) <=> ~(x = y) /\ x IN FVARS t)`,
   REPEAT STRIP_TAC THEN GEN_REWRITE_TAC LAND_CONV [FVARS_CASES] THEN
-  REWRITE_TAC[term_DISTINCT; term_INJ] THEN MESON_TAC[]);;
+  REWRITE_TAC[sterm_DISTINCT; sterm_INJ] THEN MESON_TAC[]);;
 
 let FVARS_CLAUSES = prove
- (`FVARS (Var x) = {x} /\
-   FVARS (Comb s t) = FVARS s UNION FVARS t /\
-   FVARS (Lam x t) = FVARS t DELETE x`,
-  REWRITE_TAC[EXTENSION; FVARS_INVERSION] THEN SET_TAC[]);;
+ (`FVARS (VAR x) = {x} /\
+   FVARS (APP s t) = FVARS s UNION FVARS t /\
+   FVARS (LAM x t) = FVARS t DELETE x`,
+  REWRITE_TAC[EXTENSION; IN_FVARS] THEN SET_TAC[]);;
 
 let ALPHAVARS_EQ = prove
  (`!env x x' y y':A. ALPHAVARS env (x,y) /\ ALPHAVARS env (x',y')
@@ -114,7 +145,7 @@ let FVARS_RACONV = prove
            ==> (!x. x IN FVARS (FST p) /\ ~(?y. MEM (x,y) env) <=>
                     x IN FVARS (SND p) /\ ~(?y. MEM (y,x) env))`,
   MATCH_MP_TAC RACONV_INDUCT THEN
-  REWRITE_TAC[FVARS_INVERSION; MEM; PAIR_EQ] THEN CONJ_TAC THENL
+  REWRITE_TAC[IN_FVARS; MEM; PAIR_EQ] THEN CONJ_TAC THENL
   [LIST_INDUCT_TAC THEN REWRITE_TAC[ALPHAVARS; MEM] THENL
    [MESON_TAC[];
     STRUCT_CASES_TAC (ISPEC `h:num#num` PAIR_SURJECTIVE) THEN
@@ -134,7 +165,7 @@ let VFARS_ACONV = prove
 
 let FINITE_FVARS = prove
  (`!t. FINITE (FVARS t)`,
-  MATCH_MP_TAC term_INDUCT THEN
+  MATCH_MP_TAC sterm_INDUCT THEN
   REWRITE_TAC[FVARS_CLAUSES; FINITE_SING; FINITE_UNION; FINITE_DELETE]);;
 
 let AVOID_FINITE_EXISTS = prove
@@ -147,31 +178,35 @@ let FRESH = (specify o prove)
  (`!s:num->bool. FINITE s ==> ?FRESH. ~(FRESH IN s)`,
   MESON_TAC[AVOID_FINITE_EXISTS; num_INFINITE]);;
 
+let FRESH_NEQ = prove
+ (`!s x. FINITE s /\ x IN s ==> ~(FRESH s = x)`,
+  MESON_TAC[FRESH]);;
+
 (* ------------------------------------------------------------------------- *)
 (* Term substitution.                                                        *)
 (* ------------------------------------------------------------------------- *)
 
 let VSUBST = define
-  `(!f x. VSUBST f (Var x) = f x) /\
-   (!f s t. VSUBST f (Comb s t) = Comb (VSUBST f s) (VSUBST f t)) /\
-   (!f x t. VSUBST f (Lam x t) =
+  `(!f x. VSUBST f (VAR x) = f x) /\
+   (!f s t. VSUBST f (APP s t) = APP (VSUBST f s) (VSUBST f t)) /\
+   (!f x t. VSUBST f (LAM x t) =
             let x' = FRESH (UNIONS {FVARS (f y) | y IN FVARS t}) in
-            Lam x' (VSUBST (\v. if v = x then Var x' else f v) t))`;;
+            LAM x' (VSUBST (\v. if v = x then VAR x' else f v) t))`;;
 
 let IN_FVARS_VSUBST = prove
  (`!t u f. u IN FVARS (VSUBST f t) <=>
            ?y. y IN FVARS t /\ u IN FVARS (f y)`,
-  MATCH_MP_TAC term_INDUCT THEN REPEAT STRIP_TAC THEN
-  ASM_REWRITE_TAC[VSUBST; FVARS_INVERSION] THENL
+  MATCH_MP_TAC sterm_INDUCT THEN REPEAT STRIP_TAC THEN
+  ASM_REWRITE_TAC[VSUBST; IN_FVARS] THENL
   [REWRITE_TAC[UNWIND_THM2]; MESON_TAC[]; ALL_TAC] THEN
-  LET_TAC THEN ASM_REWRITE_TAC[FVARS_INVERSION] THEN EQ_TAC THENL
+  LET_TAC THEN ASM_REWRITE_TAC[IN_FVARS] THEN EQ_TAC THENL
   [STRIP_TAC THEN POP_ASSUM MP_TAC THEN COND_CASES_TAC THENL
    [POP_ASSUM (SUBST_VAR_TAC o GSYM); ASM_REWRITE_TAC[]] THEN
-   ASM_REWRITE_TAC[FVARS_INVERSION] THEN ASM_MESON_TAC[];
+   ASM_REWRITE_TAC[IN_FVARS] THEN ASM_MESON_TAC[];
    ALL_TAC] THEN
-  STRIP_TAC THEN CONJ_TAC THENL [ALL_TAC; ASM_MESON_TAC[FVARS_INVERSION]] THEN
-  SUBGOAL_THEN `u IN UNIONS {FVARS (f y) | y IN FVARS a1} /\
-                ~(x' IN UNIONS {FVARS (f y) | y IN FVARS a1})`
+  STRIP_TAC THEN CONJ_TAC THENL [ALL_TAC; ASM_MESON_TAC[IN_FVARS]] THEN
+  SUBGOAL_THEN `u IN UNIONS {FVARS (f y) | y IN FVARS t} /\
+                ~(x' IN UNIONS {FVARS (f y) | y IN FVARS t})`
                (fun th -> MESON_TAC[th]) THEN
   FIRST_X_ASSUM SUBST_VAR_TAC THEN CONJ_TAC THENL
   [ASM SET_TAC []; MATCH_MP_TAC FRESH] THEN
@@ -206,36 +241,11 @@ let RACONV_ENV_INDEPENDENT = prove
                                     ALPHAVARS env' (x,y)))
                         ==> RACONV env' p`
       (fun th -> MESON_TAC[REWRITE_RULE[FORALL_PAIR_THM] th]) THEN
-  MATCH_MP_TAC RACONV_INDUCT THEN REWRITE_TAC[FVARS_INVERSION; RACONV] THEN
+  MATCH_MP_TAC RACONV_INDUCT THEN REWRITE_TAC[IN_FVARS; RACONV] THEN
   REPEAT CONJ_TAC THENL [MESON_TAC[]; MESON_TAC[]; ALL_TAC] THEN
   REWRITE_TAC[ALPHAVARS; PAIR_EQ] THEN REPEAT STRIP_TAC THEN
   FIRST_X_ASSUM MATCH_MP_TAC THEN REWRITE_TAC[ALPHAVARS; PAIR_EQ] THEN
   ASM_MESON_TAC[]);;
-
-let SWAP = new_definition
-  `SWAP (x:A,y:B) = (y,x)`;;
-
-let REV_ASSOCD = define
-  `(REV_ASSOCD a [] d = d) /\
-   (REV_ASSOCD a (CONS (x,y) t) d =
-        if y = a then x else REV_ASSOCD a t d)`;;
-
-let ASSOCD = define
-  `(ASSOCD a [] d = d) /\
-   (ASSOCD a (CONS (x,y) t) d =
-        if x = a then y else ASSOCD a t d)`;;
-
-let ACONV_COMB = prove
- (`!s1 s2 t1 t2. ACONV (Comb s1 t1) (Comb s2 t2) <=>
-                 ACONV s1 s2 /\ ACONV t1 t2`,
-  REWRITE_TAC[ACONV; RACONV]);;
-
-let RACONV_INDUCT_STRONG =
-  derive_strong_induction (RACONV_RULES,RACONV_INDUCT);;
-
-let FRESH_NEQ = prove
- (`!s x. FINITE s /\ x IN s ==> ~(FRESH s = x)`,
-  MESON_TAC[FRESH]);;
 
 let RACONV_VSUBST = prove
  (`!env s t env' f g.
@@ -254,8 +264,8 @@ let RACONV_VSUBST = prove
     (fun th -> MESON_TAC[REWRITE_RULE[FORALL_PAIR_THM] th]) THEN
   MATCH_MP_TAC RACONV_INDUCT_STRONG THEN REWRITE_TAC[VSUBST; RACONV] THEN
   REPEAT CONJ_TAC THENL
-  [REWRITE_TAC[FVARS_INVERSION] THEN MESON_TAC[];
-   REWRITE_TAC[FVARS_INVERSION] THEN MESON_TAC[];
+  [REWRITE_TAC[IN_FVARS] THEN MESON_TAC[];
+   REWRITE_TAC[IN_FVARS] THEN MESON_TAC[];
    ALL_TAC] THEN
   REPEAT STRIP_TAC THEN REWRITE_TAC[VSUBST] THEN
   LET_TAC THEN LET_TAC THEN REWRITE_TAC[RACONV] THEN
@@ -265,7 +275,7 @@ let RACONV_VSUBST = prove
    ALL_TAC] THEN
   ASM_REWRITE_TAC[] THEN
   MP_TAC (SPECL [`env':(num#num)list`; `CONS (x'':num,x':num) env'`;
-                 `f (u:num):term`; `g (v:num):term`]
+                 `f (u:num):sterm`; `g (v:num):sterm`]
           RACONV_ENV_INDEPENDENT) THEN
   ANTS_TAC THENL
   [INTRO_TAC "![w] [z]; w z" THEN ASM_REWRITE_TAC[ALPHAVARS; PAIR_EQ] THEN
@@ -278,7 +288,7 @@ let RACONV_VSUBST = prove
    REWRITE_TAC[UNIONS_IMAGE; IN_ELIM_THM] THEN ASM_MESON_TAC[];
    ALL_TAC] THEN
   DISCH_THEN (SUBST1_TAC o GSYM) THEN FIRST_X_ASSUM MATCH_MP_TAC THEN
-  ASM_REWRITE_TAC[FVARS_INVERSION]);;
+  ASM_REWRITE_TAC[IN_FVARS]);;
 
 let ACONV_VSUBST = prove
  (`!s t f g. ACONV s t /\ (!x. x IN FVARS s ==> ACONV (f x) (g x))
@@ -286,3 +296,25 @@ let ACONV_VSUBST = prove
   REWRITE_TAC[ACONV] THEN REPEAT STRIP_TAC THEN MATCH_MP_TAC RACONV_VSUBST THEN
   EXISTS_TAC `[]:(num#num)list` THEN ASM_REWRITE_TAC[ALPHAVARS] THEN
   ASM_MESON_TAC[]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Unused.                                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+let SWAP = new_definition
+  `SWAP (x:A,y:B) = (y,x)`;;
+
+let REV_ASSOCD = define
+  `(REV_ASSOCD a [] d = d) /\
+   (REV_ASSOCD a (CONS (x,y) t) d =
+        if y = a then x else REV_ASSOCD a t d)`;;
+
+let ASSOCD = define
+  `(ASSOCD a [] d = d) /\
+   (ASSOCD a (CONS (x,y) t) d =
+        if x = a then y else ASSOCD a t d)`;;
+
+let ACONV_APP = prove
+ (`!s1 s2 t1 t2. ACONV (APP s1 t1) (APP s2 t2) <=>
+                 ACONV s1 s2 /\ ACONV t1 t2`,
+  REWRITE_TAC[ACONV; RACONV]);;

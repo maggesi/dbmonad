@@ -11,17 +11,18 @@ type_invention_warning := true;;
 needs "De_Bruijn/misc.ml";;
 needs "De_Bruijn/lib.ml";;
 
+(* ------------------------------------------------------------------------- *)
+(* Datatypes for lambda terms.  Named encoding.                              *)
+(* ------------------------------------------------------------------------- *)
+
 let sterm_INDUCT,sterm_RECUR = define_type
   "sterm = SVAR num
          | SAPP sterm sterm
          | SLAM num sterm";;
 
-let sterm_INDUCT = prove
- (`!P. (!v. P (VAR v)) /\
-       (!s t. P s /\ P t ==> P (APP s t)) /\
-       (!v s. P s ==> P (LAM v s))
-       ==> (!s:sterm. P s)`,
-  MATCH_ACCEPT_TAC sterm_INDUCT);;
+(* ------------------------------------------------------------------------- *)
+(* Overloading of lambda term constructions.                                 *)
+(* ------------------------------------------------------------------------- *)
 
 make_overloadable "VAR" `:num->A`;;
 make_overloadable "APP" `:A->A->A`;;
@@ -38,6 +39,17 @@ let prioritize_sterm() =
   overload_interface("LAM",`SLAM:num->sterm->sterm`);;
 
 prioritize_sterm();;
+
+(* ------------------------------------------------------------------------- *)
+(* Basic syntactic principles.                                               *)
+(* ------------------------------------------------------------------------- *)
+
+let sterm_INDUCT = prove
+ (`!P. (!v. P (VAR v)) /\
+       (!s t. P s /\ P t ==> P (APP s t)) /\
+       (!v s. P s ==> P (LAM v s))
+       ==> (!s:sterm. P s)`,
+  MATCH_ACCEPT_TAC sterm_INDUCT);;
 
 let sterm_INJ = injectivity "sterm";;
 let sterm_DISTINCT = distinctness "sterm";;
@@ -152,7 +164,7 @@ let FVARS_RACONV = prove
     REWRITE_TAC[PAIR_EQ] THEN ASM_MESON_TAC[]];
    MESON_TAC[]]);;
 
-let VFARS_ACONV = prove
+let FVARS_ACONV = prove
  (`!s t x. ACONV s t ==> (x IN FVARS s <=> x IN FVARS t)`,
   REPEAT GEN_TAC THEN REWRITE_TAC[ACONV] THEN
   DISCH_THEN(MP_TAC o MATCH_MP FVARS_RACONV) THEN

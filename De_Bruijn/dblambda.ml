@@ -56,10 +56,27 @@ let FREES_CLAUSES = prove
 (* Reindexing operator (functoriality).                                      *)
 (* ------------------------------------------------------------------------- *)
 
+let SLIDE = new_recursive_definition num_RECURSION
+  `(!f. SLIDE f 0 = 0) /\
+   (!f i. SLIDE f (SUC i) = SUC (f i))`;;
+
 let REINDEX = new_recursive_definition dblambda_RECURSION
   `(!f i. REINDEX f (REF i) = REF (f i)) /\
    (!f x y. REINDEX f (APP x y) = APP (REINDEX f x) (REINDEX f y)) /\
    (!f x. REINDEX f (ABS x) = ABS (REINDEX (SLIDE f) x))`;;
+
+let SLIDE_I = prove
+ (`SLIDE I = I`,
+  REWRITE_TAC[FUN_EQ_THM] THEN CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; I_THM]);;
+
+let SLIDE_SLIDE = prove
+ (`!f g i. SLIDE f (SLIDE g i) = SLIDE (f o g) i`,
+  GEN_TAC THEN GEN_TAC THEN CASES_GEN_TAC THEN REWRITE_TAC[SLIDE; o_THM]);;
+
+let SLIDE_INJ = prove
+ (`!f i j. (!k l. f k = f l ==> k = l) ==> (SLIDE f i = SLIDE f j <=> i = j)`,
+  GEN_TAC THEN CASES_GEN_TAC THEN CASES_GEN_TAC THEN
+  REWRITE_TAC[SLIDE; NOT_SUC; SUC_INJ] THEN MESON_TAC[]);;
 
 let REINDEX_I = prove
  (`!x. REINDEX I x = x`,
@@ -382,7 +399,7 @@ let SUBST_SUBST1 = prove
   MATCH_MP_TAC EQ_SYM THEN REWRITE_TAC[SUBST_REF_EQ; o_THM; PUSHENV]);;
 
 (* ------------------------------------------------------------------------- *)
-(*  Beta reduction rule.                                                     *)
+(* Beta reduction rule.                                                      *)
 (* ------------------------------------------------------------------------- *)
 
 let DBLAMBDA_BETA_RULES, DBLAMBDA_BETA_INDUCT, DBLAMBDA_BETA_CASES =

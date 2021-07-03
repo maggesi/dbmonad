@@ -76,7 +76,8 @@ let FORALL_DBMODULE_THM = prove
 
 let DBMODULE_CLAUSES = prove
  (`!m:(A,B)dbmodule.
-     (!f g x. DBMBIND m f (DBMBIND m g x) = DBMBIND m (DBBIND (DBBASE m) f o g) x) /\
+     (!f g x. DBMBIND m f (DBMBIND m g x) =
+              DBMBIND m (DBBIND (DBBASE m) f o g) x) /\
      (!x. DBMBIND m (DBUNIT (DBBASE m)) x = x)`,
   REWRITE_TAC[FORALL_DBMODULE_THM]);;
 

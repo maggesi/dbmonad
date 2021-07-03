@@ -63,6 +63,17 @@ let sterm_CASES = prove
 (* Alpha-conversion.                                                         *)
 (* ------------------------------------------------------------------------- *)
 
+let ALPHAVARS_RULES,ALPHAVARS_INDUCT,ALPHAVARS_CASES = new_inductive_definition
+  `(!x. ALPHAVARS [] x x) /\
+   (!env x y. ALPHAVARS (CONS (x,y) env) x y) /\
+   (!env x y w z. ~(x = w) /\ ~(y = z) ==> ALPHAVARS (CONS (w,z) env) x y)`;;
+
+let ALPHAVARS = define
+  `(ALPHAVARS [] x y <=> x = y) /\
+   (ALPHAVARS (CONS (w,z) oenv) x y <=>
+        x = w /\ y = z \/
+        ~(x = w) /\ ~(y = z) /\ ALPHAVARS oenv x y)`;;
+
 let ALPHAVARS = define
   `(ALPHAVARS [] tmp <=> (FST tmp = SND tmp)) /\
    (ALPHAVARS (CONS tp oenv) tmp <=>

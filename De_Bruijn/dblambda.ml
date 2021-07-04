@@ -123,13 +123,26 @@ let REINDEX_INJ = prove
   REWRITE_TAC[injectivity "dblambda"] THEN REPEAT STRIP_TAC THEN
   ASM_MESON_TAC[SLIDE_INJ]);;
 
+let REINDEX_CLAUSES = prove
+ (`(!f i. REINDEX f (REF i) = REF (f i)) /\
+   (!f x y. REINDEX f (APP x y) = APP (REINDEX f x) (REINDEX f y)) /\
+   (!f x. REINDEX f (ABS x) = ABS (REINDEX (SLIDE f) x)) /\
+   (!f. SLIDE f 0 = 0) /\
+   (!f i. SLIDE f (SUC i) = SUC (f i))`,
+  REWRITE_TAC[REINDEX; SLIDE]);;
+
 (* ------------------------------------------------------------------------- *)
-(* Derivation operator (needed for the substitution right next).             *)
+(* Parallel capture-avoiding substitution (higher-order style).              *)
 (* ------------------------------------------------------------------------- *)
 
 let DERIV = new_recursive_definition num_RECURSION
   `(!f. DERIV f 0 = REF 0) /\
    (!f i. DERIV f (SUC i) = REINDEX SUC (f i))`;;
+
+let SUBST = new_recursive_definition dblambda_RECURSION
+  `(!f i. SUBST f (REF i) = f i) /\
+   (!f x y. SUBST f (APP x y) = APP (SUBST f x) (SUBST f y)) /\
+   (!f x. SUBST f (ABS x) = ABS (SUBST (DERIV f) x))`;;
 
 let DERIV_REF = prove
  (`DERIV REF = REF`,
@@ -148,15 +161,6 @@ let DERIV_SLIDE = prove
 let DERIV_O_SUC = prove
  (`!f. DERIV f o SUC = REINDEX SUC o f`,
   REWRITE_TAC[FUN_EQ_THM; o_THM; DERIV]);;
-
-(* ------------------------------------------------------------------------- *)
-(* Parallel capture-avoiding substitution (higher-order style).              *)
-(* ------------------------------------------------------------------------- *)
-
-let SUBST = new_recursive_definition dblambda_RECURSION
-  `(!f i. SUBST f (REF i) = f i) /\
-   (!f x y. SUBST f (APP x y) = APP (SUBST f x) (SUBST f y)) /\
-   (!f x. SUBST f (ABS x) = ABS (SUBST (DERIV f) x))`;;
 
 let SUBST_REF = prove
  (`!x. SUBST REF x = x`,
@@ -214,6 +218,14 @@ let REINDEX_EQ_SUBST = prove
   ASM_REWRITE_TAC[REINDEX; SUBST; o_THM; injectivity "dblambda"] THEN
   REWRITE_TAC[SUBST_EXTENS] THEN CASES_GEN_TAC THEN DISCH_TAC THEN
   REWRITE_TAC[o_THM; DERIV; SLIDE; REINDEX]);;
+
+let SUBST_CLAUSES = prove
+ (`(!f i. SUBST f (REF i) = f i) /\
+   (!f x y. SUBST f (APP x y) = APP (SUBST f x) (SUBST f y)) /\
+   (!f x. SUBST f (ABS x) = ABS (SUBST (DERIV f) x)) /\
+   (!f. DERIV f 0 = REF 0) /\
+   (!f i. DERIV f (SUC i) = SUBST (REF o SUC) (f i))`,
+  REWRITE_TAC[SUBST; DERIV; REINDEX_EQ_SUBST]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Classical definition of linear (capture-avoiding) substitution.           *)
@@ -350,7 +362,7 @@ let REINDEX_SUBSTI1 = prove
   REWRITE_TAC[ARITH_RULE `~(k + i - k - 1 < k) /\
                           (k + i - k - 1) - k = i - SUC k`] THEN
   AP_TERM_TAC THEN AP_TERM_TAC THEN ARITH_TAC);;
-  
+
 let REINDEX_SUBST1 = prove
  (`!f x y. REINDEX f (SUBST1 y x) =
            SUBST1 (REINDEX f y) (REINDEX (SLIDE f) x)`,

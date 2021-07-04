@@ -186,13 +186,13 @@ let SUBST_RED2 = prove
 
 let MODULE_RSUBST = prove
  (`RSUBST IN MODULE SUBST`,
-  REWRITE_TAC[IN_MODULE; MONAD_SUBST; UNIT_SUBST;
+  REWRITE_TAC[IN_MODULE; SUBST_IN_MONAD; UNIT_SUBST;
               RSUBST_REF; RSUBST_SUBST]);;
 
 (*
 let MODULE_SUBST = prove
  (`SUBST IN MODULE SUBST`,
-  REWRITE_TAC[MODULE_DEF; MONAD_SUBST; UNIT_SUBST;
+  REWRITE_TAC[MODULE_DEF; SUBST_IN_MONAD; UNIT_SUBST;
               SUBST_REF; SUBST_SUBST]);;
 *)
 
@@ -306,7 +306,7 @@ let TSUBST_REF = prove
 
 let MODULE_TSUBST = prove
  (`TSUBST IN MODULE SUBST`,
-  REWRITE_TAC[IN_MODULE; MONAD_SUBST; UNIT_SUBST;
+  REWRITE_TAC[IN_MODULE; SUBST_IN_MONAD; UNIT_SUBST;
               TSUBST_REF; TSUBST_TSUBST]);;
 
 let TRED1 = new_definition
@@ -357,7 +357,7 @@ let REDMONAD = new_definition
 let REDMONAD_CLAUSES = prove
  (`!op mop p1 p2:A->B.
      REDMONAD (op,mop,p1,p2)
-     ==> MONAD op /\
+     ==> op IN MONAD /\
          mop IN MODULE op /\
          p1 IN MODULE_MOR op (mop,op) /\
          p2 IN MODULE_MOR op (mop,op)`,

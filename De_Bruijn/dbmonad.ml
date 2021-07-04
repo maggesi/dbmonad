@@ -13,43 +13,50 @@
 (* ------------------------------------------------------------------------- *)
 
 let MONAD_DEF = new_definition
-  `!op:(num->A)->A->A.
-     MONAD op <=>
+  `MONAD =
+   {op:(num->A)->A->A |
      (!f g x. op g (op f x) = op (\n. op g (f n)) x) /\
-     (?i. (!f n. op f (i n) = f n) /\ (!x. op i x = x))`;;
+     (?i. (!f n. op f (i n) = f n) /\ (!x. op i x = x))}`;;
+
+let IN_MONAD = prove
+ (`!op:(num->A)->A->A.
+     op IN MONAD <=>
+     (!f g x. op g (op f x) = op (\n. op g (f n)) x) /\
+     (?i. (!f n. op f (i n) = f n) /\ (!x. op i x = x))`,
+  REWRITE_TAC[MONAD_DEF; IN_ELIM_THM]);;
 
 let UNIT = new_definition
   `!op:(num->A)->A->A.
      UNIT op = (@i. (!f n. op f (i n) = f n) /\ (!x. op i x = x))`;;
 
 let MONAD = prove
- (`!op. MONAD op <=>
+ (`!op. op IN MONAD <=>
         (!f g x:A. op g (op f x) = op (\n. op g (f n)) x) /\
         (!f n. op f (UNIT op n) = f n) /\
         (!x. op (UNIT op) x = x)`,
-  REWRITE_TAC[MONAD_DEF; UNIT] THEN MESON_TAC[]);;
+  REWRITE_TAC[IN_MONAD; UNIT] THEN MESON_TAC[]);;
 
 let MONAD_ASSOC = prove
- (`!op. MONAD op ==> !f g x:A. op g (op f x) = op (op g o f) x`,
+ (`!op. op IN MONAD ==> !f g x:A. op g (op f x) = op (op g o f) x`,
   REWRITE_TAC[MONAD; o_DEF] THEN MESON_TAC[]);;
 
 let MONAD_RUNIT = prove
- (`!op. MONAD op ==> (!f n. op f (UNIT op n) = f n:A)`,
+ (`!op. op IN MONAD ==> (!f n. op f (UNIT op n) = f n:A)`,
   REWRITE_TAC[MONAD] THEN MESON_TAC[]);;
 
 let MONAD_LUNIT = prove
- (`!op. MONAD op ==> (!x:A. op (UNIT op) x = x)`,
+ (`!op. op IN MONAD ==> (!x:A. op (UNIT op) x = x)`,
   REWRITE_TAC[MONAD] THEN MESON_TAC[]);;
 
 let MONAD_LUNIT_IMP = prove
- (`!op f x:A. MONAD op /\ (!i. f i = UNIT op i) ==> op f x = x`,
+ (`!op f x:A. op IN MONAD /\ (!i. f i = UNIT op i) ==> op f x = x`,
   REPEAT GEN_TAC THEN REWRITE_TAC[GSYM FUN_EQ_THM; ETA_AX] THEN
   SIMP_TAC[MONAD_LUNIT]);;
 
-let UNIT_UNIQUE = prove
- (`!op i. MONAD op /\ (!f n. op f (i n) = f n:A) /\ (!x. op i x = x)
+let MONAD_UNIT_UNIQUE = prove
+ (`!op i. op IN MONAD /\ (!f n. op f (i n) = f n:A) /\ (!x. op i x = x)
           ==> UNIT op = i`,
-  REWRITE_TAC[MONAD_DEF; UNIT; FUN_EQ_THM] THEN MESON_TAC[]);;
+  REWRITE_TAC[IN_MONAD; UNIT; FUN_EQ_THM] THEN MESON_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Reindexing: functoriality of De Bruijn monads.                            *)
@@ -60,26 +67,26 @@ let FMAP = new_definition
 
 let FMAP_FMAP = prove
  (`!op f g x:A.
-     MONAD op
+     op IN MONAD
      ==> FMAP op g (FMAP op f x) = FMAP op (g o f) x`,
   REPEAT GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[FMAP] THEN
   ASM_SIMP_TAC[MONAD_ASSOC] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
   ASM_SIMP_TAC[MONAD_RUNIT; FUN_EQ_THM; o_THM]);;
 
 let FMAP_UNIT = prove
- (`!op f i. MONAD op ==> FMAP op f (UNIT op i) = UNIT op (f i):A`,
+ (`!op f i. op IN MONAD ==> FMAP op f (UNIT op i) = UNIT op (f i):A`,
   REPEAT GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[FMAP] THEN
   ASM_SIMP_TAC[MONAD_RUNIT] THEN REWRITE_TAC[o_THM]);;
 
 let FMAP_OP = prove
- (`!op f g x:A. MONAD op
+ (`!op f g x:A. op IN MONAD
                 ==> FMAP op f (op g x) = op (FMAP op f o g) x`,
   REPEAT GEN_TAC THEN DISCH_TAC THEN
   ASM_SIMP_TAC[FMAP; MONAD_ASSOC; o_THM] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; FMAP]);;
 
 let OP_FMAP = prove
- (`!op f g x:A. MONAD op ==> op f (FMAP op g x) = op (f o g) x`,
+ (`!op f g x:A. op IN MONAD ==> op f (FMAP op g x) = op (f o g) x`,
   REPEAT GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[FMAP] THEN
   ASM_SIMP_TAC[MONAD_ASSOC] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
   REWRITE_TAC[FUN_EQ_THM; o_THM] THEN GEN_TAC THEN ASM_SIMP_TAC[MONAD_RUNIT]);;
@@ -90,20 +97,20 @@ let OP_FMAP = prove
 
 let MONAD_HOM = define
   `MONAD_HOM (op1,op2) =
-   {h:A->B | MONAD op1 /\ MONAD op2 /\
+   {h:A->B | op1 IN MONAD /\ op2 IN MONAD /\
              (!n. h (UNIT op1 n) = UNIT op2 n) /\
              (!f x. h (op1 f x) = op2 (h o f) (h x))}`;;
 
 let IN_MONAD_HOM = prove
  (`!op1 op2 h:A->B.
      h IN MONAD_HOM (op1,op2) <=>
-     MONAD op1 /\ MONAD op2 /\
+     op1 IN MONAD /\ op2 IN MONAD /\
      (!n. h (UNIT op1 n) = UNIT op2 n) /\
      (!f x. h (op1 f x) = op2 (h o f) (h x))`,
   REWRITE_TAC[MONAD_HOM; IN_ELIM_THM]);;
 
-let MONAD_HOM_ID = prove
- (`!op:(num->A)->A->A. MONAD op ==> I IN MONAD_HOM (op,op)`,
+let MONAD_HOM_I = prove
+ (`!op:(num->A)->A->A. op IN MONAD ==> I IN MONAD_HOM (op,op)`,
   REWRITE_TAC[IN_MONAD_HOM; I_THM; I_O_ID]);;
 
 let MONAD_HOM_o = prove
@@ -119,13 +126,13 @@ let MONAD_HOM_o = prove
 
 let MODULE = new_definition
   `MODULE (op:(num->A)->A->A) =
-   {mop:(num->A)->B->B | MONAD op /\
+   {mop:(num->A)->B->B | op IN MONAD /\
                          (!x. mop (UNIT op) x = x) /\
                          (!f g x. mop g (mop f x) = mop (op g o f) x)}`;;
 
 let IN_MODULE = prove
  (`mop:(num->A)->B->B IN MODULE (op:(num->A)->A->A) <=>
-   MONAD op /\
+   op IN MONAD /\
    (!x. mop (UNIT op) x = x) /\
    (!f g x. mop g (mop f x) = mop (op g o f) x)`,
   REWRITE_TAC[MODULE; IN_ELIM_THM]);;
@@ -138,7 +145,7 @@ let MMAP = new_definition
 (* ------------------------------------------------------------------------- *)
 
 let SELF_MODULE = prove
- (`!op:(num->A)->A->A. op IN MODULE op <=> MONAD op`,
+ (`!op:(num->A)->A->A. op IN MODULE op <=> op IN MONAD`,
   REWRITE_TAC[MONAD; IN_MODULE; o_DEF] THEN MESON_TAC[]);;
 
 let SELF_FMAP = prove
@@ -212,7 +219,7 @@ let PBMOP = new_definition
   `!h:A'->A mop:(num->A)->M->M f.
      PBMOP h mop f = mop (h o f)`;;
 
-let PB_MODULE = prove
+let PBMOP_IN_MODULE = prove
  (`!op' op h:A'->A mop:(num->A)->M->M.
       h IN MONAD_HOM (op',op) /\ mop IN MODULE op
       ==> PBMOP h mop IN MODULE op'`,
@@ -228,7 +235,7 @@ let MDERIV = new_recursive_definition num_RECURSION
    (!op f i. MDERIV op f (SUC i) = FMAP op SUC (f i))`;;
 
 let MDERIV_UNIT = prove
- (`!op. MONAD op ==> MDERIV op (UNIT op) = UNIT op:num->A`,
+ (`!op. op IN MONAD ==> MDERIV op (UNIT op) = UNIT op:num->A`,
   GEN_TAC THEN DISCH_TAC THEN REWRITE_TAC[FUN_EQ_THM] THEN NUM_CASES_TAC THEN
   REWRITE_TAC[MDERIV] THEN ASM_SIMP_TAC[FMAP_UNIT]);;
 
@@ -241,10 +248,9 @@ let MODULE_DMOP = prove
      mop IN MODULE op ==> DMOP op mop IN MODULE op`,
   REPEAT GEN_TAC THEN INTRO_TAC "mod" THEN
   HYP_TAC "mod -> mnd munit massoc" (REWRITE_RULE[IN_MODULE]) THEN
-  ASM_REWRITE_TAC[IN_MODULE] THEN REPEAT STRIP_TAC THEN
-  REWRITE_TAC[DMOP] THEN ASM_SIMP_TAC[MDERIV_UNIT] THEN
-  REWRITE_TAC[o_THM] THEN AP_THM_TAC THEN AP_TERM_TAC THEN
-  REWRITE_TAC[FUN_EQ_THM] THEN NUM_CASES_TAC THEN
+  ASM_REWRITE_TAC[IN_MODULE] THEN REPEAT STRIP_TAC THEN REWRITE_TAC[DMOP] THEN
+  ASM_SIMP_TAC[MDERIV_UNIT] THEN REWRITE_TAC[o_THM] THEN AP_THM_TAC THEN
+  AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM] THEN NUM_CASES_TAC THEN
   ASM_SIMP_TAC[MDERIV; MONAD_RUNIT; o_THM; OP_FMAP; FMAP_OP] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM; MDERIV]);;
 

@@ -292,7 +292,7 @@ let IN_DBMONAD_HOM = prove
                 (!f x. h (DBBIND m f x) = DBBIND n (h o f) (h x))`,
   REWRITE_TAC[DBMONAD_HOM; IN_ELIM_THM]);;
 
-let DBMONAD_HOM_ID = prove
+let DBMONAD_HOM_I = prove
  (`!m:A dbmonad. I IN DBMONAD_HOM (m,m)`,
   REWRITE_TAC[IN_DBMONAD_HOM; I_THM; I_O_ID]);;
 

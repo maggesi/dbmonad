@@ -303,7 +303,7 @@ let IN_BIG_DBMODULE_HOM = prove
 
 let BIG_DBMODULE_HOM_ID = prove
  (`!m:(A,M)dbmodule. (I,I) IN BIG_DBMODULE_HOM (m,m)`,
-  REWRITE_TAC[IN_BIG_DBMODULE_HOM; I_THM; I_O_ID; DBMONAD_HOM_ID]);;
+  REWRITE_TAC[IN_BIG_DBMODULE_HOM; I_THM; I_O_ID; DBMONAD_HOM_I]);;
 
 let BIG_DBMODULE_HOM_o = prove
  (`!m1:(A,L)dbmodule m2:(B,M)dbmodule m3:(C,N)dbmodule
@@ -319,7 +319,7 @@ let SMALL_DBMODULE = prove
      DBBASE m1 = DBBASE m2 /\
      (I,h) IN BIG_DBMODULE_HOM (m1,m2)`,
   REWRITE_TAC[IN_DBMODULE_HOM; IN_BIG_DBMODULE_HOM; I_O_ID] THEN
-  MESON_TAC[DBMONAD_HOM_ID]);;
+  MESON_TAC[DBMONAD_HOM_I]);;
 
 let SELF_DBMODULE_HOM = prove
  (`!m1 m2 h:A->B.

@@ -13,18 +13,19 @@
 (* De Bruijn Monads of the syntactic lambda calculus.                        *)
 (* ------------------------------------------------------------------------- *)
 
-let MONAD_SUBST = prove
- (`MONAD SUBST`,
-  REWRITE_TAC[MONAD_DEF; SUBST_SUBST; o_DEF] THEN EXISTS_TAC `REF` THEN
+let SUBST_IN_MONAD = prove
+ (`SUBST IN MONAD`,
+  REWRITE_TAC[IN_MONAD; SUBST_SUBST; o_DEF] THEN EXISTS_TAC `REF` THEN
   REWRITE_TAC[SUBST; SUBST_REF]);;
 
 let UNIT_SUBST = prove
  (`UNIT SUBST = REF`,
-  MATCH_MP_TAC UNIT_UNIQUE THEN REWRITE_TAC[MONAD_SUBST; SUBST; SUBST_REF]);;
+  MATCH_MP_TAC MONAD_UNIT_UNIQUE THEN
+  REWRITE_TAC[SUBST_IN_MONAD; SUBST; SUBST_REF]);;
 
 let SUBST_IN_MODULE = prove
  (`SUBST IN MODULE SUBST`,
-  REWRITE_TAC[SELF_MODULE; MONAD_SUBST]);;
+  REWRITE_TAC[SELF_MODULE; SUBST_IN_MONAD]);;
 
 let FMAP_SUBST = prove
  (`FMAP SUBST = REINDEX`,
@@ -52,21 +53,21 @@ let ABS_IN_MODULE_MOR = prove
 let DBLAMBDA_MODEL = new_definition
   `DBLAMBDA_MODEL =
    {(op:(num->A)->A->A,app:A#A->A,lam:A->A) |
-      MONAD op /\
+      op IN MONAD /\
       app IN MODULE_MOR op (MPROD op op, op) /\
       lam IN MODULE_MOR op (DMOP op op, op)}`;;
 
 let IN_DBLAMBDA_MODEL = prove
  (`!op:(num->A)->A->A app:A#A->A lam:A->A.
    (op,app,lam) IN DBLAMBDA_MODEL <=>
-   MONAD op /\
+   op IN MONAD /\
    app IN MODULE_MOR op (MPROD op op, op) /\
    lam IN MODULE_MOR op (DMOP op op, op)`,
   REWRITE_TAC[DBLAMBDA_MODEL; IN_ELIM_THM; PAIR_EQ] THEN MESON_TAC[]);;
 
 let DBLAMBDA_IN_DBLAMBDA_MODEL = prove
  (`SUBST,UNCURRY APP,ABS IN DBLAMBDA_MODEL`,
-  REWRITE_TAC[IN_DBLAMBDA_MODEL; MONAD_SUBST;
+  REWRITE_TAC[IN_DBLAMBDA_MODEL; SUBST_IN_MONAD;
               APP_IN_MODULE_MOR; ABS_IN_MODULE_MOR]);;
 
 let DBLAMBDA_MODEL_MOR = new_definition
@@ -159,7 +160,7 @@ let DBLAMBDAINIT_IN_MONAD_HOM = prove
      ==> DBLAMBDAINIT (op,app,lam) IN MONAD_HOM (SUBST,op)`,
   REPEAT GEN_TAC THEN INTRO_TAC "model" THEN
   HYP_TAC "model -> op app lam" (REWRITE_RULE[IN_DBLAMBDA_MODEL]) THEN
-  ASM_REWRITE_TAC[IN_MONAD_HOM; MONAD_SUBST] THEN
+  ASM_REWRITE_TAC[IN_MONAD_HOM; SUBST_IN_MONAD] THEN
   REWRITE_TAC[DBLAMBDAINIT; UNIT_SUBST] THEN
   ASM_SIMP_TAC[DBLAMBDAINIT_SUBST]);;
 
@@ -192,16 +193,15 @@ let DBLAMBDAINIT_UNIQUE = prove
 (* De Bruijn Monads of the semantic lambda calculus.                         *)
 (* ------------------------------------------------------------------------- *)
 
-let LC_MONAD = prove
- (`MONAD LC_SUBST`,
-  REWRITE_TAC[MONAD_DEF; LC_SUBST_SUBST; o_DEF] THEN
-  EXISTS_TAC `LC_REF` THEN
+let LC_SUBST_IN_MONAD = prove
+ (`LC_SUBST IN MONAD`,
+  REWRITE_TAC[IN_MONAD; LC_SUBST_SUBST; o_DEF] THEN EXISTS_TAC `LC_REF` THEN
   REWRITE_TAC[LC_SUBST_RUNIT; LC_SUBST_LUNIT]);;
 
 let LC_UNIT = prove
  (`UNIT LC_SUBST = LC_REF`,
-  MATCH_MP_TAC UNIT_UNIQUE THEN
-  REWRITE_TAC[LC_MONAD; LC_SUBST_LUNIT; LC_SUBST_RUNIT]);;
+  MATCH_MP_TAC MONAD_UNIT_UNIQUE THEN
+  REWRITE_TAC[LC_SUBST_IN_MONAD; LC_SUBST_LUNIT; LC_SUBST_RUNIT]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Proof that LC is an exponential operad.                                   *)
@@ -225,8 +225,8 @@ let LC_REINDEX_EQ_LC_SUBST = prove
 
 let LC_ABS_MODULE_MOR = prove
  (`LC_ABS IN MODULE_MOR LC_SUBST (DMOP LC_SUBST LC_SUBST, LC_SUBST)`,
-  REWRITE_TAC[IN_MODULE_MOR; SELF_MODULE; LC_MONAD] THEN
-  SIMP_TAC[MODULE_DMOP; LC_MONAD; SELF_MODULE] THEN
+  REWRITE_TAC[IN_MODULE_MOR; SELF_MODULE; LC_SUBST_IN_MONAD] THEN
+  SIMP_TAC[MODULE_DMOP; LC_SUBST_IN_MONAD; SELF_MODULE] THEN
   REWRITE_TAC[FORALL_LC_THM; FORALL_LC_FUN_THM] THEN REPEAT GEN_TAC THEN
   REWRITE_TAC[LC_SUBST] THEN AP_TERM_TAC THEN REWRITE_TAC[DMOP] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM] THEN
@@ -249,7 +249,7 @@ let LC_EXP = prove
 let EXP_MONAD_UNFOLD = prove
  (`!op h:A->A g.
      EXP_MONAD op h g <=>
-     MONAD op /\
+     op IN MONAD /\
      (!x. g (h x) = x) /\
      (!y. h (g y) = y) /\
      (!f x. h (op f x) = op (MDERIV op f) (h x)) /\
@@ -369,7 +369,7 @@ g `!op h:A->A g.
       EXP_MONAD op h g ==> LC_EXPMAP op h g IN MONAD_HOM (LC_SUBST,op)`;;
 e (REPEAT STRIP_TAC);;
 e (FIRST_ASSUM (STRIP_ASSUME_TAC o REWRITE_RULE [EXP_MONAD_UNFOLD]));;
-e (ASM_REWRITE_TAC[IN_MONAD_HOM; LC_MONAD]);;
+e (ASM_REWRITE_TAC[IN_MONAD_HOM; LC_SUBST_IN_MONAD]);;
 e (REWRITE_TAC[LC_UNIT; LC_REF]);;
 e (ASM_SIMP_TAC[LC_EXPMAP_FACTOR; DBLAMBDA_EXPMAP]);;
 e (REWRITE_TAC[LC_SUBST_DEF]);;
@@ -442,7 +442,7 @@ e (STRIP_ASSUME_TAC
                    (ASSUME `EXP_MONAD_HOM LC_SUBST LC_APP0 LC_ABS
                                            op (h:A->A) g m`)));;
 e (STRIP_ASSUME_TAC
-    (REWRITE_RULE [IN_MONAD_HOM; LC_MONAD]
+    (REWRITE_RULE [IN_MONAD_HOM; LC_SUBST_IN_MONAD]
                   (ASSUME `m:lc->A IN MONAD_HOM (LC_SUBST,op)`)));;
 e (REWRITE_TAC[FUN_EQ_THM]);;
 e (REWRITE_TAC[FORALL_LC_THM]);;

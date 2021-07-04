@@ -1,5 +1,5 @@
 (* ========================================================================= *)
-(*  Initial semantics based on De Brujin encoding                            *)
+(*  Initial semantics based on De Bruijn encoding                            *)
 (*  with dbmonads and their modules.                                         *)
 (*                                                                           *)
 (*  Author: Marco Maggesi                                                    *)

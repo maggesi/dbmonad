@@ -1,5 +1,5 @@
 (* ========================================================================= *)
-(*  Initial semantics based on De Brujin encoding                            *)
+(*  Initial semantics based on De Bruijn encoding                            *)
 (*  with dbmonads and their modules.                                         *)
 (*                                                                           *)
 (*  Author: Marco Maggesi                                                    *)
@@ -17,11 +17,7 @@ needs "Library/iter.ml";;               (* Iteration.                       *)
 type_invention_warning := true;;
 
 loadt "De_Bruijn/lib.ml";;              (* Misc tactics and theorems        *)
-loadt "De_Bruijn/dblambda.ml";;         (* Lambda calculus                  *)
-loadt "De_Bruijn/dbmonad.ml";;          (* dB-monads                        *)
-loadt "De_Bruijn/dbmodule.ml";;         (* dB-modules                       *)
-loadt "De_Bruijn/dblambda_initial.ml";; (* Lambda calculus is initial       *)
-
+loadt "De_Bruijn/dblambda.ml";;         (* Syntax of the Lambda calculus    *)
 loadt "De_Bruijn/lambda.ml";;           (* Lambda calculus modulo beta-eta  *)
-loadt "De_Bruijn/substoid.ml";;         (* Substoids and modules            *)
+loadt "De_Bruijn/substoid.ml";;         (* De Bruijn monads and             *)
 loadt "De_Bruijn/univ.ml";;             (* Universal property of lc         *)

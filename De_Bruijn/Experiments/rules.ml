@@ -1,5 +1,5 @@
 (* ========================================================================= *)
-(*  Initial semantics based on De Brujin encoding                            *)
+(*  Initial semantics based on De Bruijn encoding                            *)
 (*  with substoids and their modules.                                        *)
 (*                                                                           *)
 (*  (c) Copyright, Marco Maggesi 2005 2006 2017, 2020                        *)

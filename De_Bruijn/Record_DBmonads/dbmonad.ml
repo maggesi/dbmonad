@@ -20,7 +20,7 @@ let HAS_SIZE_1_IMP_EQ = prove
   MESON_TAC[HAS_SIZE_1_INDISCERNIBLE]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Definition of De Brujin monad structure.                                  *)
+(* Definition of De Bruijn monad structure.                                  *)
 (* ------------------------------------------------------------------------- *)
 
 let IS_DBMONAD = new_definition

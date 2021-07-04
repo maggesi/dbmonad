@@ -2,7 +2,7 @@
 (*  Initial semantics based on De Bruijn encoding                            *)
 (*  with substoids and their modules.                                        *)
 (*                                                                           *)
-(*  (c) Copyright, Marco Maggesi 2005 2006 2017, 2020                        *)
+(*  (c) Copyright, Marco Maggesi 2005 2006 2017, 2020, 2021                  *)
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
@@ -135,7 +135,7 @@ let RFREES_CLAUSES = prove
   REWRITE_TAC[EXTENSION; RFREES_INVERSION] THEN SET_TAC[]);;
 
 (* ------------------------------------------------------------------------- *)
-(* SBMODULE structure of the reduction relations.                            *)
+(* MODULE structure of the reduction relations.                            *)
 (* ------------------------------------------------------------------------- *)
 
 let RSUBST = new_recursive_definition lcrel_RECUR
@@ -184,27 +184,27 @@ let SUBST_RED2 = prove
   REWRITE_TAC[DERIV; PUSHENV; SUBST; SUBST_REINDEX] THEN
   MATCH_MP_TAC EQ_SYM THEN REWRITE_TAC[SUBST_REF_EQ; o_THM; PUSHENV]);;
 
-let SBMODULE_RSUBST = prove
- (`RSUBST IN SBMODULE SUBST`,
-  REWRITE_TAC[IN_SBMODULE; DBLAMBDA_SUBSTOID; DBLAMBDA_UNIT;
+let MODULE_RSUBST = prove
+ (`RSUBST IN MODULE SUBST`,
+  REWRITE_TAC[IN_MODULE; MONAD_SUBST; UNIT_SUBST;
               RSUBST_REF; RSUBST_SUBST]);;
 
 (*
-let SBMODULE_SUBST = prove
- (`SUBST IN SBMODULE SUBST`,
-  REWRITE_TAC[SBMODULE_DEF; DBLAMBDA_SUBSTOID; DBLAMBDA_UNIT;
+let MODULE_SUBST = prove
+ (`SUBST IN MODULE SUBST`,
+  REWRITE_TAC[MODULE_DEF; MONAD_SUBST; UNIT_SUBST;
               SUBST_REF; SUBST_SUBST]);;
 *)
 
-let SBMODULE_MOR_RED1 = prove
- (`RED1 IN SBMODULE_MOR SUBST (RSUBST,SUBST) `,
-  REWRITE_TAC[IN_SBMODULE_MOR; SBMODULE_RSUBST;
-              DBLAMBDA_SBMODULE; SUBST_RED1]);;
+let MODULE_MOR_RED1 = prove
+ (`RED1 IN MODULE_MOR SUBST (RSUBST,SUBST) `,
+  REWRITE_TAC[IN_MODULE_MOR; MODULE_RSUBST;
+              SUBST_IN_MODULE; SUBST_RED1]);;
 
-let SBMODULE_MOR_RED2 = prove
- (`RED2 IN SBMODULE_MOR SUBST (RSUBST,SUBST)`,
-  REWRITE_TAC[IN_SBMODULE_MOR; SBMODULE_RSUBST;
-              DBLAMBDA_SBMODULE; SUBST_RED2]);;
+let MODULE_MOR_RED2 = prove
+ (`RED2 IN MODULE_MOR SUBST (RSUBST,SUBST)`,
+  REWRITE_TAC[IN_MODULE_MOR; MODULE_RSUBST;
+              SUBST_IN_MODULE; SUBST_RED2]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Reduction module.                                                         *)
@@ -250,7 +250,7 @@ let MK_RED_INJ = prove
   MESON_TAC[MK_RED_INJ_EQ]);;
 
 (* ------------------------------------------------------------------------- *)
-(* Substitution for the SBMODULE of reductions.                              *)
+(* Substitution for the MODULE of reductions.                              *)
 (* ------------------------------------------------------------------------- *)
 
 let TSUBST = new_definition
@@ -304,9 +304,9 @@ let TSUBST_REF = prove
   MATCH_MP_TAC FORALL_RED_THM_IMP THEN
   SIMP_TAC[FORALL_PAIR_THM; TSUBST_MK_RED; RED_SUBST; SUBST_REF; RSUBST_REF]);;
 
-let SBMODULE_TSUBST = prove
- (`TSUBST IN SBMODULE SUBST`,
-  REWRITE_TAC[IN_SBMODULE; DBLAMBDA_SUBSTOID; DBLAMBDA_UNIT;
+let MODULE_TSUBST = prove
+ (`TSUBST IN MODULE SUBST`,
+  REWRITE_TAC[IN_MODULE; MONAD_SUBST; UNIT_SUBST;
               TSUBST_REF; TSUBST_TSUBST]);;
 
 let TRED1 = new_definition
@@ -335,15 +335,15 @@ let TRED2_TSUBST = prove
   GEN_TAC THEN MATCH_MP_TAC FORALL_RED_THM_IMP THEN
   SIMP_TAC[FORALL_PAIR_THM; TSUBST_MK_RED; TRED2_MK_RED; RED_SUBST]);;
 
-let SBMODULE_MOR_TRED1 = prove
- (`TRED1 IN SBMODULE_MOR SUBST (TSUBST,SUBST)`,
-  REWRITE_TAC[IN_SBMODULE_MOR; SBMODULE_TSUBST;
-              DBLAMBDA_SBMODULE; TRED1_TSUBST]);;
+let MODULE_MOR_TRED1 = prove
+ (`TRED1 IN MODULE_MOR SUBST (TSUBST,SUBST)`,
+  REWRITE_TAC[IN_MODULE_MOR; MODULE_TSUBST;
+              SUBST_IN_MODULE; TRED1_TSUBST]);;
 
-let SBMODULE_MOR_TRED2 = prove
- (`TRED2 IN SBMODULE_MOR SUBST (TSUBST,SUBST)`,
-  REWRITE_TAC[IN_SBMODULE_MOR; SBMODULE_TSUBST;
-              DBLAMBDA_SBMODULE; TRED2_TSUBST]);;
+let MODULE_MOR_TRED2 = prove
+ (`TRED2 IN MODULE_MOR SUBST (TSUBST,SUBST)`,
+  REWRITE_TAC[IN_MODULE_MOR; MODULE_TSUBST;
+              SUBST_IN_MODULE; TRED2_TSUBST]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Reduction monads.                                                         *)
@@ -351,26 +351,26 @@ let SBMODULE_MOR_TRED2 = prove
 
 let REDMONAD = new_definition
   `REDMONAD (op,mop,p1,p2) <=>
-   p1 IN SBMODULE_MOR op (mop,op) /\
-   p2 IN SBMODULE_MOR op (mop,op)`;;
+   p1 IN MODULE_MOR op (mop,op) /\
+   p2 IN MODULE_MOR op (mop,op)`;;
 
 let REDMONAD_CLAUSES = prove
  (`!op mop p1 p2:A->B.
      REDMONAD (op,mop,p1,p2)
-     ==> SUBSTOID op /\
-         mop IN SBMODULE op /\
-         p1 IN SBMODULE_MOR op (mop,op) /\
-         p2 IN SBMODULE_MOR op (mop,op)`,
-  SIMP_TAC[REDMONAD; IN_SBMODULE_MOR; IN_SBMODULE]);;
+     ==> MONAD op /\
+         mop IN MODULE op /\
+         p1 IN MODULE_MOR op (mop,op) /\
+         p2 IN MODULE_MOR op (mop,op)`,
+  SIMP_TAC[REDMONAD; IN_MODULE_MOR; IN_MODULE]);;
 
-let REDMONAD_MOR = new_definition
-  `REDMONAD_MOR (op,mop,p1,(p2:M->A))
+let REDMONAD_HOM = new_definition
+  `REDMONAD_HOM (op,mop,p1,(p2:M->A))
                 (op',mop',p1',(p2':N->B))
                 (f:A->B,g:M->N) <=>
    REDMONAD (op,mop,p1,p2) /\
    REDMONAD (op',mop',p1',p2') /\
-   f IN SUBSTOID_MOR (op,op') /\
-   g IN SBMODULE_MOR op (mop, PBMOP op op' f mop') /\
+   f IN MONAD_HOM (op,op') /\
+   g IN MODULE_MOR op (mop, PBMOP f mop') /\
    p1' o g = f o p1 /\
    p2' o g = f o p2`;;
 
@@ -378,7 +378,7 @@ let REDMONAD_MOR = new_definition
 (* Lambda calculus as reduction monad.                                       *)
 (* ------------------------------------------------------------------------- *)
 
-let REDMONAD_SUBSTOID = prove
+let REDMONAD_MONAD = prove
  (`REDMONAD (SUBST,TSUBST,TRED1,TRED2)`,
-  REWRITE_TAC[REDMONAD; IN_SBMODULE_MOR; DBLAMBDA_SBMODULE; SBMODULE_TSUBST;
+  REWRITE_TAC[REDMONAD; IN_MODULE_MOR; SUBST_IN_MODULE; MODULE_TSUBST;
               TRED1_TSUBST; TRED2_TSUBST]);;

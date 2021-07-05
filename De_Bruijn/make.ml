@@ -1,12 +1,6 @@
 (* ========================================================================= *)
 (* Initial semantics based on the De Bruijn encoding                         *)
 (* using De Bruijn monads and their modules.                                 *)
-(*                                                                           *)
-(* Author: Marco Maggesi                                                     *)
-(*         University of Florence, Italy                                     *)
-(*         http://www.math.unifi.it/~maggesi/                                *)
-(*                                                                           *)
-(*         (c) Copyright, Marco Maggesi 2005 2006 2017, 2020, 2021           *)
 (* ========================================================================= *)
 
 prioritize_num();;

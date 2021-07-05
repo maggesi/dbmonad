@@ -1,12 +1,6 @@
 (* ========================================================================= *)
 (* Proof of the universal property of the syntactic and semantic             *)
 (* lambda calculus.                                                          *)
-(*                                                                           *)
-(* Author: Marco Maggesi                                                     *)
-(*         University of Florence, Italy                                     *)
-(*         http://www.math.unifi.it/~maggesi/                                *)
-(*                                                                           *)
-(*         (c) Copyright, Marco Maggesi 2005 2006 2017, 2020, 2021           *)
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)

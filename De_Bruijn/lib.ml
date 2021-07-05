@@ -1,15 +1,9 @@
 (* ========================================================================= *)
-(*  Additional tactics and theorems about nums, lists, nats...               *)
-(*                                                                           *)
-(*  Author: Marco Maggesi                                                    *)
-(*          University of Florence, Italy                                    *)
-(*          http://www.math.unifi.it/~maggesi/                               *)
-(*                                                                           *)
-(*          (c) Copyright, Marco Maggesi 2005 2006 2017, 2020                *)
+(* Additional tactics and theorems about nums, lists, nats...                *)
 (* ========================================================================= *)
 
 (* ------------------------------------------------------------------------- *)
-(*  Some tactics.                                                            *)
+(* Some tactics.                                                             *)
 (* ------------------------------------------------------------------------- *)
 
 let NUM_CASES_TAC =
@@ -30,7 +24,7 @@ let X_LIST_INDUCT_TAC tm =
   SPEC_TAC (tm, tm) THEN LIST_INDUCT_TAC;;
 
 (* ------------------------------------------------------------------------- *)
-(*  PREIMAGE.                                                                *)
+(* PREIMAGE.                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
 let PREIMAGE = new_definition
@@ -98,7 +92,7 @@ let RSTC_MAP = prove
   DISCH_TAC THEN MATCH_MP_TAC RSTC_INDUCT THEN ASM_MESON_TAC[RSTC_RULES]);;
 
 (* ------------------------------------------------------------------------- *)
-(*  Misc.                                                                    *)
+(* Misc.                                                                     *)
 (* ------------------------------------------------------------------------- *)
 
 let IF_DISTRIB = MESON[]

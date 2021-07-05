@@ -40,8 +40,7 @@ let APP_IN_MODULE_MOR = prove
 let ABS_IN_MODULE_MOR = prove
  (`ABS IN MODULE_MOR SUBST (DMOP SUBST SUBST,SUBST)`,
   REWRITE_TAC[IN_MODULE_MOR; SUBST_IN_MODULE] THEN CONJ_TAC THENL
-  [MATCH_MP_TAC MODULE_DMOP THEN REWRITE_TAC[SUBST_IN_MODULE];
-   ALL_TAC] THEN
+  [MATCH_MP_TAC MODULE_DMOP THEN REWRITE_TAC[SUBST_IN_MODULE]; ALL_TAC] THEN
   REPEAT GEN_TAC THEN REWRITE_TAC[SUBST; DMOP; injectivity "dblambda"] THEN
   AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM] THEN INDUCT_TAC THEN
   REWRITE_TAC[DERIV; MDERIV; UNIT_SUBST; FMAP_SUBST]);;
@@ -106,7 +105,7 @@ let DBLAMBDAINIT = prove
           app(DBLAMBDAINIT (op,app,lam) x, DBLAMBDAINIT (op,app,lam) y):A) /\
    (!x. DBLAMBDAINIT (op,app,lam) (ABS x) =
         lam(DBLAMBDAINIT (op,app,lam) x):A)`,
-   REWRITE_TAC[DBLAMBDAINIT_DEF]);;
+  REWRITE_TAC[DBLAMBDAINIT_DEF]);;
 
 (* ------------------------------------------------------------------------- *)
 (* Compatibility with reindexing and substitution of the initial morphism.   *)

@@ -308,4 +308,4 @@ let EXP_MONAD_HOM = new_definition
      EXP_MONAD op1 h1 g1 /\
      EXP_MONAD op2 h2 g2 /\
      f IN MONAD_HOM (op1,op2) /\
-      (!x. h2 (f x) = f (h1 x))`;;
+     (!x. h2 (f x) = f (h1 x))`;;

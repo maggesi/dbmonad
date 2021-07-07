@@ -208,8 +208,8 @@ let IN_MODEL = prove
 (* Morphisms of models.                                                      *)
 (* ------------------------------------------------------------------------- *)
 
-let MODEL_HOM = new_definition
-  `MODEL_HOM (sig:signature)
+let MODEL_MOR = new_definition
+  `MODEL_MOR (sig:signature)
              (s1:A->bool,ref1,fn1,subst1)
              (s2:B->bool,ref2,fn2,subst2) =
    {h:A->B |
@@ -222,15 +222,15 @@ let MODEL_HOM = new_definition
      (!f x. x IN s1 /\ (!i. f i IN s1)
             ==> h (subst1 f x) = subst2 (h o f) (h x))}`;;
 
-let o_IN_MODEL_HOM = prove
+let o_IN_MODEL_MOR = prove
  (`!sig s1 ref1 fn1 subst1
         s2 ref2 fn2 subst2
         s3 ref3 fn3 subst3
         h1:A->B h2:B->C.
-     h1 IN MODEL_HOM sig (s1,ref1,fn1,subst1) (s2,ref2,fn2,subst2) /\
-     h2 IN MODEL_HOM sig (s2,ref2,fn2,subst2) (s3,ref3,fn3,subst3)
-     ==> (h2 o h1) IN MODEL_HOM sig (s1,ref1,fn1,subst1) (s3,ref3,fn3,subst3)`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[MODEL_HOM; IN_ELIM_THM] THEN STRIP_TAC THEN
+     h1 IN MODEL_MOR sig (s1,ref1,fn1,subst1) (s2,ref2,fn2,subst2) /\
+     h2 IN MODEL_MOR sig (s2,ref2,fn2,subst2) (s3,ref3,fn3,subst3)
+     ==> (h2 o h1) IN MODEL_MOR sig (s1,ref1,fn1,subst1) (s3,ref3,fn3,subst3)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[MODEL_MOR; IN_ELIM_THM] THEN STRIP_TAC THEN
   ASM_SIMP_TAC[o_THM; o_ASSOC] THEN REPEAT STRIP_TAC THEN
   IMP_REWRITE_TAC[GSYM MAP_o] THEN
   SUBGOAL_THEN `FST o (\(k:num,x:A). k,h1 x:B) = FST`
@@ -416,13 +416,13 @@ let INITIAL_MORPHISM_TMSUBST = prove
   USE_THEN "model" (MP_TAC o MATCH_MP INITIAL_MORPHISM_TMREINDEX) THEN
   ASM_SIMP_TAC[]);;
 
-let INITIAL_MORPHISM_IN_MODEL_HOM = prove
+let INITIAL_MORPHISM_IN_MODEL_MOR = prove
  (`!sig s ref:num->A fn subst.
      (s,ref,fn,subst) IN MODEL sig
      ==> INITIAL_MORPHISM (ref,fn) IN
-           MODEL_HOM sig (WELLFORMED sig,TMREF,FN,TMSUBST) (s,ref,fn,subst)`,
+           MODEL_MOR sig (WELLFORMED sig,TMREF,FN,TMSUBST) (s,ref,fn,subst)`,
   REPEAT GEN_TAC THEN INTRO_TAC "model" THEN
-  ASM_REWRITE_TAC[MODEL_HOM; IN_ELIM_THM; RTERM_IN_MODEL;
+  ASM_REWRITE_TAC[MODEL_MOR; IN_ELIM_THM; RTERM_IN_MODEL;
                   INITIAL_MORPHISM_CLAUSES] THEN CONJ_TAC THENL
   [ASM_MESON_TAC[INITIAL_MORPHISM_IN];
    ASM_MESON_TAC[INITIAL_MORPHISM_TMSUBST]]);;
@@ -430,9 +430,9 @@ let INITIAL_MORPHISM_IN_MODEL_HOM = prove
 let INITIAL_MORPHISM_UNIQUE = prove
  (`!sig s ref:num->A fn subst h.
      (s,ref,fn,subst) IN MODEL sig /\
-     h IN MODEL_HOM sig (WELLFORMED sig,TMREF,FN,TMSUBST) (s,ref,fn,subst)
+     h IN MODEL_MOR sig (WELLFORMED sig,TMREF,FN,TMSUBST) (s,ref,fn,subst)
      ==> (!x. x IN WELLFORMED sig ==> h x = INITIAL_MORPHISM (ref,fn) x)`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[MODEL_HOM; IN_ELIM_THM] THEN STRIP_TAC THEN
+  REPEAT GEN_TAC THEN REWRITE_TAC[MODEL_MOR; IN_ELIM_THM] THEN STRIP_TAC THEN
   MATCH_MP_TAC INITIAL_MORPHISM_UNIQUE_SIMPLE THEN
   ASM_REWRITE_TAC[]);;
 
@@ -575,12 +575,12 @@ let RTERM_OF_DBLAMDBA_SUBST = prove
   SUBGOAL_THEN `(+) 1 = SUC` (fun th -> REWRITE_TAC[th]) THEN
   REWRITE_TAC[FUN_EQ_THM] THEN ARITH_TAC);;
 
-let RTERM_OF_DBLAMDBA_IN_MODEL_HOM = prove
+let RTERM_OF_DBLAMDBA_IN_MODEL_MOR = prove
  (`RTERM_OF_DBLAMDBA IN
-     MODEL_HOM LC_SIGNATURE
+     MODEL_MOR LC_SIGNATURE
       ((:dblambda),REF,DBFN,SUBST)
       (WELLFORMED LC_SIGNATURE, TMREF, FN, TMSUBST)`,
-  REWRITE_TAC[MODEL_HOM; IN_ELIM_THM; IN_UNIV; DBLAMBDA_IN_MODEL;
+  REWRITE_TAC[MODEL_MOR; IN_ELIM_THM; IN_UNIV; DBLAMBDA_IN_MODEL;
               RTERM_IN_MODEL; RTERM_OF_DBLAMDBA_IN_WELLFORMED;
               RTERM_OF_DBLAMDBA; RTERM_OF_DBLAMDBA_SUBST] THEN
   REPEAT GEN_TAC THEN
@@ -590,12 +590,12 @@ let RTERM_OF_DBLAMDBA_IN_MODEL_HOM = prove
   REWRITE_TAC[DBFN; RTERM_OF_DBLAMDBA; MAP]);;
 
 let RTERM_OF_DBLAMDBA_UNIQUE = prove
- (`!h. h IN MODEL_HOM LC_SIGNATURE
+ (`!h. h IN MODEL_MOR LC_SIGNATURE
              ((:dblambda),REF,DBFN,SUBST)
              (WELLFORMED LC_SIGNATURE, TMREF, FN, TMSUBST)
        ==> (!x. h x = RTERM_OF_DBLAMDBA x)`,
   INTRO_TAC "!h; h" THEN USE_THEN "h" MP_TAC THEN
-  REWRITE_TAC[MODEL_HOM; IN_ELIM_THM; IN_UNIV] THEN
+  REWRITE_TAC[MODEL_MOR; IN_ELIM_THM; IN_UNIV] THEN
   INTRO_TAC "_ _ wf ref fn subst" THEN
   DBLAMBDA_INDUCT_TAC THEN ASM_REWRITE_TAC[RTERM_OF_DBLAMDBA] THENL
   [TRANS_TAC EQ_TRANS `h (DBFN 0 [0,a0; 0,a1]):rterm` THEN CONJ_TAC THENL
@@ -653,17 +653,17 @@ let FORALL_DBLAMBDA = prove
 let DBLAMBDA_UNIVERSAL = prove
  (`!s ref:num->A fn subst.
      (s,ref,fn,subst) IN MODEL LC_SIGNATURE
-     ==> ?h. h IN MODEL_HOM LC_SIGNATURE
+     ==> ?h. h IN MODEL_MOR LC_SIGNATURE
                     ((:dblambda),REF,DBFN,SUBST) (s,ref,fn,subst) /\
-             (!h'. h' IN MODEL_HOM LC_SIGNATURE
+             (!h'. h' IN MODEL_MOR LC_SIGNATURE
                           ((:dblambda),REF,DBFN,SUBST) (s,ref,fn,subst)
                    ==> h'= h)`,
   REPEAT GEN_TAC THEN INTRO_TAC "model" THEN
   EXISTS_TAC `INITIAL_MORPHISM (ref,fn):rterm->A o RTERM_OF_DBLAMDBA` THEN
   CONJ_TAC THENL
-  [MATCH_MP_TAC o_IN_MODEL_HOM THEN
-   ASM_MESON_TAC[INITIAL_MORPHISM_IN_MODEL_HOM;
-                 RTERM_OF_DBLAMDBA_IN_MODEL_HOM];
+  [MATCH_MP_TAC o_IN_MODEL_MOR THEN
+   ASM_MESON_TAC[INITIAL_MORPHISM_IN_MODEL_MOR;
+                 RTERM_OF_DBLAMDBA_IN_MODEL_MOR];
    ALL_TAC] THEN
   INTRO_TAC "!h'; h'" THEN REWRITE_TAC[FUN_EQ_THM; o_THM; FORALL_DBLAMBDA] THEN
   SIMP_TAC[RTERM_OF_DBLAMDBA_INITIAL_MORPHISM] THEN
@@ -671,78 +671,5 @@ let DBLAMBDA_UNIVERSAL = prove
     `(f o INITIAL_MORPHISM (REF,DBFN)) x:A`)] THEN
   MATCH_MP_TAC INITIAL_MORPHISM_UNIQUE THEN
   MAP_EVERY EXISTS_TAC [`s:A->bool`;`subst:(num->A)->A->A`] THEN
-  ASM_REWRITE_TAC[ETA_AX] THEN MATCH_MP_TAC o_IN_MODEL_HOM THEN
-  ASM_MESON_TAC[INITIAL_MORPHISM_IN_MODEL_HOM; DBLAMBDA_IN_MODEL]);;
-
-
-
-
-
-
-(* ------------------------------------------------------------------------- *)
-(* Tentativo alternativo.                                                    *)
-(* ------------------------------------------------------------------------- *)
-(*
-let DBINITIAL_MORPHISM = define
-  `(!i. DBINITIAL_MORPHISM (ref,fn) (REF i) = ref i:A) /\
-   (!x y. DBINITIAL_MORPHISM (ref,fn) (APP x y) =
-          fn 0 [0,DBINITIAL_MORPHISM (ref,fn) x;
-                0,DBINITIAL_MORPHISM (ref,fn) y]) /\
-   (!x. DBINITIAL_MORPHISM (ref,fn) (ABS x) =
-        fn 1 [1,DBINITIAL_MORPHISM (ref,fn) x])`;;
-
-let DBINITIAL_MORPHISM_IN = prove
- (`!s ref:num->A fn subst.
-     (s,ref,fn,subst) IN MODEL LC_SIGNATURE
-     ==> !x. DBINITIAL_MORPHISM (ref,fn) x IN s`,
-  REPEAT GEN_TAC THEN INTRO_TAC "model" THEN
-  HYP_TAC "model -> ref fn s1 s2" (REWRITE_RULE[IN_MODEL]) THEN§
-  DBLAMBDA_INDUCT_TAC THEN ASM_REWRITE_TAC[DBINITIAL_MORPHISM] THEN
-  REMOVE_THEN "fn" MATCH_MP_TAC THEN
-  REWRITE_TAC[MAP; LC_SIGNATURE; IN_INSERT; NOT_IN_EMPTY; MEM; PAIR_EQ] THEN
-  ASM_MESON_TAC[]);;
-
-let DBINITIAL_MORPHISM_IN_MODEL_HOM = prove
- (`!s ref:num->A fn subst.
-     (s,ref,fn,subst) IN MODEL LC_SIGNATURE
-     ==> !f x. DBINITIAL_MORPHISM (ref,fn) (SUBST f x) =
-               subst (DBINITIAL_MORPHISM (ref,fn) o f)
-                     (DBINITIAL_MORPHISM (ref,fn) x)`,
-
-
-
-let DBINITIAL_MORPHISM_IN_MODEL_HOM = prove
- (`!s ref:num->A fn subst.
-     (s,ref,fn,subst) IN MODEL LC_SIGNATURE
-     ==> DBINITIAL_MORPHISM (ref,fn) IN
-           MODEL_HOM LC_SIGNATURE
-             ((:dblambda),REF,DBFN,SUBST) (s,ref,fn,subst)`,
-  REPEAT GEN_TAC THEN INTRO_TAC "model" THEN
-  HYP_TAC "model -> ref fn s1 s2" (REWRITE_RULE[IN_MODEL]) THEN
-  ASM_REWRITE_TAC[MODEL_HOM; IN_ELIM_THM; IN_UNIV; RTERM_IN_MODEL;
-                  DBLAMBDA_IN_MODEL; DBINITIAL_MORPHISM] THEN
-  CONJ_TAC THENL [ASM_MESON_TAC[DBINITIAL_MORPHISM_IN]; ALL_TAC] THEN
-  CONJ_TAC THENL
-  [REPEAT GEN_TAC THEN
-   REWRITE_TAC[LC_SIGNATURE; IN_INSERT; NOT_IN_EMPTY; PAIR_EQ; MAP_EQ_NIL;
-               MAP_EQ_CONS; EXISTS_PAIR_THM] THEN
-   STRIP_TAC THEN REPEAT (FIRST_X_ASSUM SUBST_VAR_TAC) THEN
-   REWRITE_TAC[DBFN; DBINITIAL_MORPHISM; MAP];
-   ALL_TAC] THEN
-  FIX_TAC "x" THEN SPEC_TAC (`x:dblambda`,`x:dblambda`) THEN
-  DBLAMBDA_INDUCT_TAC THEN GEN_TAC THEN
-  REWRITE_TAC[SUBST; DBINITIAL_MORPHISM] THEN
-
-   REMOVE_THEN "s1" (fun th -> IMP_REWRITE_TAC[th]) THEN
-   REWRITE_TAC[o_THM] THEN ASM_MESON_TAC[DBINITIAL_MORPHISM_IN]
-
-   USE_THEN "s2" (fun th -> IMP_REWRITE_TAC[th]) THEN
-   REWRITE_TAC[MAP; LC_SIGNATURE; IN_INSERT] THEN AP_TERM_TAC THEN
-   REWRITE_TAC[CONS_11; PAIR_EQ; ARITH_RULE `~(i < 0)`; SUB_0] THEN
-   SUBGOAL_THEN `ref o (+) 0 = ref:num->A` SUBST1_TAC THENL
-   [REWRITE_TAC[FUN_EQ_THM; o_THM; ADD]; ALL_TAC]
-   CONJ_TAC THEN AP_THM_TAC THEN AP_TERM_TAC THEN REWRITE_TAC[FUN_EQ_THM; o_THM]
-   GEN_TAC THEN
-   REMOVE_THEN "s1" (fun th -> IMP_REWRITE_TAC[th]) THEN
-
-*)
+  ASM_REWRITE_TAC[ETA_AX] THEN MATCH_MP_TAC o_IN_MODEL_MOR THEN
+  ASM_MESON_TAC[INITIAL_MORPHISM_IN_MODEL_MOR; DBLAMBDA_IN_MODEL]);;

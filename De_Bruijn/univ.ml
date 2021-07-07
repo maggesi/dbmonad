@@ -67,7 +67,7 @@ let DBLAMBDA_MODEL_MOR = new_definition
   `DBLAMBDA_MODEL_MOR ((op,app,lam),(op',app',lam')) =
    {h:A->B | (op, app, lam)  IN DBLAMBDA_MODEL /\
              (op',app',lam') IN DBLAMBDA_MODEL /\
-             h IN MONAD_HOM (op,op') /\
+             h IN MONAD_MOR (op,op') /\
              (!x y. h (app (x,y)) = app' (h x,h y)) /\
              (!x. h (lam x) = lam' (h x))}`;;
 
@@ -78,7 +78,7 @@ let IN_DBLAMBDA_MODEL_MOR = prove
      h IN DBLAMBDA_MODEL_MOR ((op,app,lam),(op',app',lam')) <=>
      (op, app, lam)  IN DBLAMBDA_MODEL /\
      (op',app',lam') IN DBLAMBDA_MODEL /\
-     h IN MONAD_HOM (op,op') /\
+     h IN MONAD_MOR (op,op') /\
      (!x y. h (app (x,y)) = app' (h x,h y)) /\
      (!x. h (lam x) = lam' (h x))`,
   REWRITE_TAC[DBLAMBDA_MODEL_MOR; IN_ELIM_THM]);;
@@ -147,13 +147,13 @@ let DBLAMBDAINIT_SUBST = prove
    REWRITE_TAC[MDERIV; DERIV; DBLAMBDAINIT; o_THM] THEN
    ASM_SIMP_TAC[DBLAMBDAINIT_REINDEX]]);;
 
-let DBLAMBDAINIT_IN_MONAD_HOM = prove
+let DBLAMBDAINIT_IN_MONAD_MOR = prove
  (`!op:(num->A)->A->A app lam.
      (op,app,lam) IN DBLAMBDA_MODEL
-     ==> DBLAMBDAINIT (op,app,lam) IN MONAD_HOM (SUBST,op)`,
+     ==> DBLAMBDAINIT (op,app,lam) IN MONAD_MOR (SUBST,op)`,
   REPEAT GEN_TAC THEN INTRO_TAC "model" THEN
   HYP_TAC "model -> op app lam" (REWRITE_RULE[IN_DBLAMBDA_MODEL]) THEN
-  ASM_REWRITE_TAC[IN_MONAD_HOM; SUBST_IN_MONAD] THEN
+  ASM_REWRITE_TAC[IN_MONAD_MOR; SUBST_IN_MONAD] THEN
   REWRITE_TAC[DBLAMBDAINIT; UNIT_SUBST] THEN
   ASM_SIMP_TAC[DBLAMBDAINIT_SUBST]);;
 
@@ -168,7 +168,7 @@ let DBLAMBDAINIT_IN_DBLAMBDA_MODEL_MOR = prove
          DBLAMBDA_MODEL_MOR ((SUBST,UNCURRY APP,ABS),(op,app,lam))`,
   REPEAT GEN_TAC THEN INTRO_TAC "model" THEN
   ASM_REWRITE_TAC[IN_DBLAMBDA_MODEL_MOR; DBLAMBDA_IN_DBLAMBDA_MODEL] THEN
-  ASM_SIMP_TAC[DBLAMBDAINIT_IN_MONAD_HOM] THEN
+  ASM_SIMP_TAC[DBLAMBDAINIT_IN_MONAD_MOR] THEN
   REWRITE_TAC[DBLAMBDAINIT; UNCURRY_DEF]);;
 
 let DBLAMBDAINIT_UNIQUE = prove
@@ -179,7 +179,7 @@ let DBLAMBDAINIT_UNIQUE = prove
   USE_THEN "r" (MP_TAC o REWRITE_RULE[IN_DBLAMBDA_MODEL_MOR; UNCURRY_DEF]) THEN
   INTRO_TAC "_ model r r_app r_lam" THEN REWRITE_TAC[FUN_EQ_THM] THEN
   HYP_TAC "r -> _ _ r_unit r_bind"
-    (REWRITE_RULE[IN_MONAD_HOM; UNIT_SUBST]) THEN
+    (REWRITE_RULE[IN_MONAD_MOR; UNIT_SUBST]) THEN
   DBLAMBDA_INDUCT_TAC THEN ASM_REWRITE_TAC[DBLAMBDAINIT]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -359,17 +359,17 @@ let LC_EXPMAP_FACTOR = prove
   MATCH_MP_TAC DBLAMBDA_EXPMAP_REL THEN ASM_REWRITE_TAC[LC_LIFT_PROJ]);;
 
 g `!op h:A->A g.
-      EXP_MONAD op h g ==> LC_EXPMAP op h g IN MONAD_HOM (LC_SUBST,op)`;;
+      EXP_MONAD op h g ==> LC_EXPMAP op h g IN MONAD_MOR (LC_SUBST,op)`;;
 e (REPEAT STRIP_TAC);;
 e (FIRST_ASSUM (STRIP_ASSUME_TAC o REWRITE_RULE [EXP_MONAD_UNFOLD]));;
-e (ASM_REWRITE_TAC[IN_MONAD_HOM; LC_SUBST_IN_MONAD]);;
+e (ASM_REWRITE_TAC[IN_MONAD_MOR; LC_SUBST_IN_MONAD]);;
 e (REWRITE_TAC[LC_UNIT; LC_REF]);;
 e (ASM_SIMP_TAC[LC_EXPMAP_FACTOR; DBLAMBDA_EXPMAP]);;
 e (REWRITE_TAC[LC_SUBST_DEF]);;
 e (ASM_SIMP_TAC[LC_EXPMAP_FACTOR]);;
 e (ASM_SIMP_TAC[DBLAMBDA_EXPMAP_SUBST]);;
 e (REWRITE_TAC[LC_EXPMAP; o_DEF]);;
-let MONAD_HOM_LC_EXPMAP = top_thm ();;
+let MONAD_MOR_LC_EXPMAP = top_thm ();;
 
 g `!op h:A->A g.
      EXP_MONAD op h g
@@ -393,25 +393,25 @@ let DBLAMBDA_EXPMAP_ALT = top_thm ();;
 
 g `!op h:A->A g.
       EXP_MONAD op h g
-      ==> EXP_MONAD_HOM LC_SUBST LC_APP0 LC_ABS
+      ==> EXP_MONAD_MOR LC_SUBST LC_APP0 LC_ABS
                           op h g (LC_EXPMAP op h g)`;;
 e (REPEAT STRIP_TAC);;
 e (FIRST_ASSUM (STRIP_ASSUME_TAC o REWRITE_RULE [EXP_MONAD_UNFOLD]));;
-e (ASM_REWRITE_TAC[EXP_MONAD_HOM; LC_EXP]);;
-e (ASM_SIMP_TAC[MONAD_HOM_LC_EXPMAP]);;
+e (ASM_REWRITE_TAC[EXP_MONAD_MOR; LC_EXP]);;
+e (ASM_SIMP_TAC[MONAD_MOR_LC_EXPMAP]);;
 e (REWRITE_TAC[FORALL_LC_THM]);;
 e (ASM_SIMP_TAC[LC_EXPMAP_FACTOR; LC_APP0]);;
 e (ASM_SIMP_TAC[DBLAMBDA_EXPMAP_ALT]);;
-let EXP_MONAD_HOM_LC_EXPMAP = top_thm ();;
+let EXP_MONAD_MOR_LC_EXPMAP = top_thm ();;
 
 g `!op1 h1 g1 op2 h2 g2 f:A->B.
-      EXP_MONAD_HOM op1 h1 g1 op2 h2 g2 f
+      EXP_MONAD_MOR op1 h1 g1 op2 h2 g2 f
       <=> EXP_MONAD op1 h1 g1 /\
           EXP_MONAD op2 h2 g2 /\
-          f IN MONAD_HOM (op1,op2) /\
+          f IN MONAD_MOR (op1,op2) /\
           (!x. h2 (f x) = f (h1 x)) /\
           (!x. g2 (f x) = f (g1 x))`;;
-e (REPEAT GEN_TAC THEN REWRITE_TAC[EXP_MONAD_HOM] THEN
+e (REPEAT GEN_TAC THEN REWRITE_TAC[EXP_MONAD_MOR] THEN
    EQ_TAC THENL [ALL_TAC; MESON_TAC[]]);;
 e (DISCH_THEN (fun th -> REWRITE_TAC[th] THEN MP_TAC th));;
 e (REWRITE_TAC[EXP_MONAD; MODULE_ISOM_UNFOLD; IN_MODULE_MOR]);;
@@ -420,23 +420,23 @@ e (STRIP_TAC THEN GEN_TAC);;
 e (SUBGOAL_THEN `!x y : B. h2 x :B = h2 y ==> x = y` MATCH_MP_TAC);;
 e (ASM_MESON_TAC[]);;
 e (ASM_REWRITE_TAC[]);;
-let EXP_MONAD_HOM_FACTS = top_thm ();;
+let EXP_MONAD_MOR_FACTS = top_thm ();;
 
 g `!op h:A->A g m.
       EXP_MONAD op h g /\
-      EXP_MONAD_HOM LC_SUBST LC_APP0 LC_ABS op h g m
+      EXP_MONAD_MOR LC_SUBST LC_APP0 LC_ABS op h g m
       ==> m = LC_EXPMAP op h g`;;
 e (REPEAT STRIP_TAC);;
 e (STRIP_ASSUME_TAC
     (REWRITE_RULE [EXP_MONAD_UNFOLD]
                   (ASSUME `EXP_MONAD op (h:A->A) g`)));;
 e (STRIP_ASSUME_TAC
-     (REWRITE_RULE [EXP_MONAD_HOM_FACTS; LC_EXP]
-                   (ASSUME `EXP_MONAD_HOM LC_SUBST LC_APP0 LC_ABS
+     (REWRITE_RULE [EXP_MONAD_MOR_FACTS; LC_EXP]
+                   (ASSUME `EXP_MONAD_MOR LC_SUBST LC_APP0 LC_ABS
                                            op (h:A->A) g m`)));;
 e (STRIP_ASSUME_TAC
-    (REWRITE_RULE [IN_MONAD_HOM; LC_SUBST_IN_MONAD]
-                  (ASSUME `m:lc->A IN MONAD_HOM (LC_SUBST,op)`)));;
+    (REWRITE_RULE [IN_MONAD_MOR; LC_SUBST_IN_MONAD]
+                  (ASSUME `m:lc->A IN MONAD_MOR (LC_SUBST,op)`)));;
 e (REWRITE_TAC[FUN_EQ_THM]);;
 e (REWRITE_TAC[FORALL_LC_THM]);;
 e (ASM_SIMP_TAC[LC_EXPMAP_FACTOR]);;

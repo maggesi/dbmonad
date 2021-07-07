@@ -89,29 +89,29 @@ let OP_FMAP = prove
 (* Morphisms of De Bruijn monads.                                            *)
 (* ------------------------------------------------------------------------- *)
 
-let MONAD_HOM = define
-  `MONAD_HOM (op1,op2) =
+let MONAD_MOR = define
+  `MONAD_MOR (op1,op2) =
    {h:A->B | op1 IN MONAD /\ op2 IN MONAD /\
              (!n. h (UNIT op1 n) = UNIT op2 n) /\
              (!f x. h (op1 f x) = op2 (h o f) (h x))}`;;
 
-let IN_MONAD_HOM = prove
+let IN_MONAD_MOR = prove
  (`!op1 op2 h:A->B.
-     h IN MONAD_HOM (op1,op2) <=>
+     h IN MONAD_MOR (op1,op2) <=>
      op1 IN MONAD /\ op2 IN MONAD /\
      (!n. h (UNIT op1 n) = UNIT op2 n) /\
      (!f x. h (op1 f x) = op2 (h o f) (h x))`,
-  REWRITE_TAC[MONAD_HOM; IN_ELIM_THM]);;
+  REWRITE_TAC[MONAD_MOR; IN_ELIM_THM]);;
 
-let MONAD_HOM_I = prove
- (`!op:(num->A)->A->A. op IN MONAD ==> I IN MONAD_HOM (op,op)`,
-  REWRITE_TAC[IN_MONAD_HOM; I_THM; I_O_ID]);;
+let MONAD_MOR_I = prove
+ (`!op:(num->A)->A->A. op IN MONAD ==> I IN MONAD_MOR (op,op)`,
+  REWRITE_TAC[IN_MONAD_MOR; I_THM; I_O_ID]);;
 
-let MONAD_HOM_o = prove
+let MONAD_MOR_o = prove
  (`!op1 op2 op3 h:A->B g:B->C.
-     h IN MONAD_HOM (op1,op2) /\ g IN MONAD_HOM (op2,op3)
-     ==> g o h IN MONAD_HOM (op1,op3)`,
-  REPEAT GEN_TAC THEN REWRITE_TAC[IN_MONAD_HOM] THEN STRIP_TAC THEN
+     h IN MONAD_MOR (op1,op2) /\ g IN MONAD_MOR (op2,op3)
+     ==> g o h IN MONAD_MOR (op1,op3)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[IN_MONAD_MOR] THEN STRIP_TAC THEN
   ASM_REWRITE_TAC[o_THM; o_ASSOC]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -215,9 +215,9 @@ let PBMOP = new_definition
 
 let PBMOP_IN_MODULE = prove
  (`!op' op h:A'->A mop:(num->A)->M->M.
-      h IN MONAD_HOM (op',op) /\ mop IN MODULE op
+      h IN MONAD_MOR (op',op) /\ mop IN MODULE op
       ==> PBMOP h mop IN MODULE op'`,
-  REWRITE_TAC[IN_MONAD_HOM; IN_MODULE; PBMOP] THEN REPEAT STRIP_TAC THEN
+  REWRITE_TAC[IN_MONAD_MOR; IN_MODULE; PBMOP] THEN REPEAT STRIP_TAC THEN
   ASM_REWRITE_TAC[o_DEF; ETA_AX]);;
 
 (* ------------------------------------------------------------------------- *)
@@ -296,10 +296,10 @@ let EXP_MONAD = new_definition
   `!op:(num->A)->A->A h g.
      EXP_MONAD op h g <=> MODULE_ISOM op (op,DMOP op op) (h,g)`;;
 
-let EXP_MONAD_HOM = new_definition
+let EXP_MONAD_MOR = new_definition
   `!op1 h1 g1 op2 h2 g2 f:A->B.
-     EXP_MONAD_HOM op1 h1 g1 op2 h2 g2 f <=>
+     EXP_MONAD_MOR op1 h1 g1 op2 h2 g2 f <=>
      EXP_MONAD op1 h1 g1 /\
      EXP_MONAD op2 h2 g2 /\
-     f IN MONAD_HOM (op1,op2) /\
+     f IN MONAD_MOR (op1,op2) /\
      (!x. h2 (f x) = f (h1 x))`;;

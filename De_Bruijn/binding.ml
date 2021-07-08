@@ -673,3 +673,39 @@ let DBLAMBDA_UNIVERSAL = prove
   MAP_EVERY EXISTS_TAC [`s:A->bool`;`subst:(num->A)->A->A`] THEN
   ASM_REWRITE_TAC[ETA_AX] THEN MATCH_MP_TAC o_IN_MODEL_MOR THEN
   ASM_MESON_TAC[INITIAL_MORPHISM_IN_MODEL_MOR; DBLAMBDA_IN_MODEL]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Functoriality of the category of models w.r.t. the signatures.            *)
+(* ------------------------------------------------------------------------- *)
+
+let MODEL_MONO = prove
+ (`!sig1 sig2. sig1 SUBSET sig2 ==> MODEL sig2 SUBSET MODEL sig1`,
+  REWRITE_TAC[SUBSET; FORALL_PAIR_THM] THEN INTRO_TAC "!sig1 sig2; sub" THEN
+  INTRO_TAC "![s] [ref] [fn] [subst]" THEN REWRITE_TAC[IN_MODEL] THEN
+  INTRO_TAC "ref fn s1 s2" THEN ASM_REWRITE_TAC[] THEN CONJ_TAC THENL
+  [REPEAT STRIP_TAC THEN REMOVE_THEN "fn" MATCH_MP_TAC THEN
+   ASM_REWRITE_TAC[] THEN REMOVE_THEN "sub" MATCH_MP_TAC THEN
+   ASM_REWRITE_TAC[]; ALL_TAC] THEN
+  REPEAT STRIP_TAC THEN IMP_REWRITE_TAC[]);;
+
+let MODEL_MOR_MONO = prove
+ (`!sig1 sig2 s1 ref1 fn1 subst1 s2 ref2 fn2 subst2.
+     sig1 SUBSET sig2 /\
+     (s1,ref1,fn1,subst1) IN MODEL sig2 /\
+     (s2,ref2,fn2,subst2) IN MODEL sig2
+     ==> MODEL_MOR sig2 (s1,ref1,fn1,subst1) (s2,ref2,fn2,subst2) SUBSET
+          MODEL_MOR sig1 (s1,ref1,fn1,subst1) (s2,ref2,fn2,subst2)`,
+  REPEAT GEN_TAC THEN REWRITE_TAC[SUBSET] THEN INTRO_TAC "sub m1 m2; ![h]" THEN
+  ASM_REWRITE_TAC[MODEL_MOR; IN_ELIM_THM] THEN INTRO_TAC "h href hfn" THEN
+  ASM_SIMP_TAC[] THEN ASM_MESON_TAC[SUBSET; MODEL_MONO]);;
+
+(* ------------------------------------------------------------------------- *)
+(* Functoriality of the initial semantics w.r.t. signatures.                 *)
+(* ------------------------------------------------------------------------- *)
+
+let WELLFORMED_MONO = prove
+ (`!sig1 sig2. sig1 SUBSET sig2 ==> WELLFORMED sig1 SUBSET WELLFORMED sig2`,
+  INTRO_TAC "!sig1 sig2; sub" THEN REWRITE_TAC[SUBSET] THEN
+  MATCH_MP_TAC WELLFORMED_INDUCT THEN REWRITE_TAC[WELLFORMED_TMREF] THEN
+  REPEAT STRIP_TAC THEN MATCH_MP_TAC WELLFORMED_FN THEN
+  ASM_REWRITE_TAC[] THEN ASM SET_TAC[]);;

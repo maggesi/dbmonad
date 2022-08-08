@@ -220,6 +220,31 @@ let SUBST_CLAUSES = prove
    (!f i. DERIV f (SUC i) = SUBST (REF o SUC) (f i))`,
   REWRITE_TAC[SUBST; DERIV; REINDEX_EQ_SUBST]);;
 
+let SUBST_DERIV_UNIQUE = prove
+ (`!SUBST' DERIV'.
+     (!f i. SUBST' f (REF i) = f i) /\
+     (!f x y. SUBST' f (APP x y) = APP (SUBST' f x) (SUBST' f y)) /\
+     (!f x. SUBST' f (ABS x) = ABS (SUBST' (DERIV' f) x)) /\
+     (!f. DERIV' f 0 = REF 0) /\
+     (!f i. DERIV' f (SUC i) = SUBST' (REF o SUC) (f i))
+     ==> SUBST' = SUBST /\ DERIV' = DERIV`,
+  REPEAT GEN_TAC THEN STRIP_TAC THEN
+  SUBGOAL_THEN `DERIV' = DERIV` SUBST_ALL_TAC THENL
+  [ALL_TAC;
+   SUBGOAL_THEN `!x f. SUBST' f x = SUBST f x`
+     (fun th -> REWRITE_TAC[th; FUN_EQ_THM]) THEN
+   DBLAMBDA_INDUCT_TAC THEN ASM_REWRITE_TAC[SUBST]] THEN
+  SUBGOAL_THEN `!i f. DERIV' f i = DERIV f i`
+    (fun th -> REWRITE_TAC[th; FUN_EQ_THM]) THEN
+  INDUCT_TAC THEN ASM_REWRITE_TAC[DERIV] THEN
+  SUBGOAL_THEN `!x f. SUBST' (REF o f) x = REINDEX f x`
+    (fun th -> REWRITE_TAC[th; FUN_EQ_THM]) THEN
+  DBLAMBDA_INDUCT_TAC THEN ASM_REWRITE_TAC[REINDEX_CLAUSES; o_THM] THEN
+  GEN_TAC THEN AP_TERM_TAC THEN
+  SUBGOAL_THEN `DERIV' (REF o f) = REF o SLIDE f`
+    (fun th -> ASM_REWRITE_TAC[th]) THEN
+  REWRITE_TAC[FUN_EQ_THM] THEN INDUCT_TAC THEN ASM_REWRITE_TAC[o_THM; SLIDE]);;
+
 (* ------------------------------------------------------------------------- *)
 (* Classical definition of linear (capture-avoiding) substitution.           *)
 (* ------------------------------------------------------------------------- *)
